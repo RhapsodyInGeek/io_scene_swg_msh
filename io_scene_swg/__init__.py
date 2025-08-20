@@ -728,10 +728,6 @@ class ImportSKT(bpy.types.Operator, ImportHelper):
 
             print(f'IMPORTING: {self.filepath} {filepath}')
             result = import_skt.import_skt(context, filepath, **keywords)
-
-        # if 'ERROR' in result:
-        #     self.report({'ERROR'}, 'Something went wrong importing MESH')
-        #     return {'CANCELLED'}
         
         return {'FINISHED'}
 
