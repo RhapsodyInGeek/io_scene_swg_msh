@@ -978,8 +978,7 @@ class SWG_Initialize_MGN_From_Existing(bpy.types.Operator):
         mgn.load()
         scene_object = context.active_object
         print(f"mgn: {mgn}")
-
-        for bone in mgn.bone_names:
+        
         for bone in mgn.joint_names:
             vg = scene_object.vertex_groups.new(name=bone)
 
