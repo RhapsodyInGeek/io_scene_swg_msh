@@ -23,7 +23,7 @@
 bl_info = {
     "name": "NSG SWG Tools",
     "author": "Nick Rafalski",
-    "version": (3, 0, 12),
+    "version": (3, 0, 9),
     "blender": (2, 81, 6),
     "location": "File > Import-Export",
     "description": "Import-Export SWG .msh, .mgn, .lod and .pob",
@@ -51,6 +51,7 @@ if "bpy" in locals():
     importlib.reload(export_flr)
     importlib.reload(import_pob)
     importlib.reload(export_pob)
+    importlib.reload(import_skt)
 else:
     from . import support
     from . import extents
@@ -68,6 +69,7 @@ else:
     from . import export_flr
     from . import import_pob
     from . import export_pob
+    from . import import_skt
 
 from glob import glob
 import bpy
@@ -109,7 +111,6 @@ def import_swg_file(context, file):
         print(f"Unhandled file extension in import_swg_file: {file}")
     
     return obj
-
 
 class SWGPreferences(AddonPreferences):
     # this must match the add-on name, use '__package__'
@@ -704,12 +705,45 @@ class POB_PT_export_option(bpy.types.Panel):
         layout.prop(operator, 'flip_uv_vertical')
         layout.prop(operator, 'export_children')
         layout.prop(operator, 'use_imported_crc')
+
+class ImportSKT(bpy.types.Operator, ImportHelper):
+    """Load a SWG SKT File"""
+    bl_idname = "import_scene.skt"
+    bl_label = "Import Skt"
+    bl_options = {'PRESET', 'UNDO'}
+
+    filename_ext = ".skt"
+    filter_glob: StringProperty(default = "*.skt", options = {'HIDDEN'},)
+    files: CollectionProperty(type = bpy.types.OperatorFileListElement, options = {'HIDDEN', 'SKIP_SAVE'},)
+
+    def execute(self, context):
+        keywords = self.as_keywords(ignore=("filter_glob",
+                                            "files",
+                                            "filepath"))
         
+        for f in self.files:   
+            dirname = os.path.dirname(self.filepath)
+            filepath = os.path.join(dirname, f.name)
+            
+
+            print(f'IMPORTING: {self.filepath} {filepath}')
+            result = import_skt.import_skt(context, filepath, **keywords)
+
+        # if 'ERROR' in result:
+        #     self.report({'ERROR'}, 'Something went wrong importing MESH')
+        #     return {'CANCELLED'}
+        
+        return {'FINISHED'}
+
+    def draw(self, context):
+        pass
+
 def import_operators(self, context):
     self.layout.operator(ImportMGN.bl_idname, text="SWG Animated Mesh (.mgn)")
     self.layout.operator(ImportMSH.bl_idname, text="SWG Static Mesh (.msh)")
     self.layout.operator(ImportLOD.bl_idname, text="SWG Static Level of Detail (.lod)")
     self.layout.operator(ImportPOB.bl_idname, text="SWG Portalized Object (.pob)")
+    self.layout.operator(ImportSKT.bl_idname, text="SWG Skeleton (.skt)")
 
 def export_operators(self, context):
     self.layout.operator(ExportMGN.bl_idname, text="SWG Animated Mesh (.mgn)")
@@ -902,7 +936,7 @@ class SWG_Load_Skeleton_For_MGN(bpy.types.Operator):
         skt.load()
         print(f"SKT: {skt}")
 
-        for bone in skt.bones:
+        for bone in skt.joint_names:
             exists = False
             for vg in context.active_object.vertex_groups:
                 if vg.name == bone:
@@ -950,6 +984,7 @@ class SWG_Initialize_MGN_From_Existing(bpy.types.Operator):
         print(f"mgn: {mgn}")
 
         for bone in mgn.bone_names:
+        for bone in mgn.joint_names:
             vg = scene_object.vertex_groups.new(name=bone)
 
         scene_object.shape_key_add(name='Basis')
@@ -1527,6 +1562,7 @@ classes = (
     LOD_PT_export_option,
     ExportPOB,
     POB_PT_export_option,
+    ImportSKT,
     SWG_Load_Materials_Operator,
     SWG_Add_Material_Operator,
     SWG_Create_Apt_For_Msh,

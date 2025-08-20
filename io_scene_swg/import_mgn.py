@@ -137,7 +137,7 @@ def import_mgn( context,
             except Exception as e:
                 print(f"Exception importing UVs: " + str(e))
     vgs = {}
-    for i, bone in enumerate(mgn.bone_names):
+    for i, bone in enumerate(mgn.joint_names):
         vg = scene_object.vertex_groups.new(name=bone)
         vgs[i] = vg
 

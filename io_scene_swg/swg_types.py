@@ -32,14 +32,33 @@ import mathutils
 from mathutils import Vector
 
 SWG_ROOT=None
+
 class SktFile(object):
-    __slots__ = ('path', 'bones')
-    def __init__(self, path, bones = None):
-        self.path=path
-        self.bones=bones
+    __slots__ = (
+        'path', 
+        'joint_count', 
+        'joint_names', 
+        'joint_parents', 
+        'joint_pre_rotations', 
+        'joint_post_rotations', 
+        'joint_translations',
+        'joint_bind_rotations',
+        'joint_rotation_order'
+        )
+    
+    def __init__(self, path, joint_names = None):
+        self.path = path
+        self.joint_count = 0
+        self.joint_names = joint_names
+        self.joint_parents = None
+        self.joint_pre_rotations = None
+        self.joint_post_rotations = None
+        self.joint_translations = None
+        self.joint_bind_rotations = None
+        self.joint_rotation_order = None
 
     def __str__(self):
-        return f"{self.path}: Bones: {self.bones}"
+        return f"{self.path}: Bones: {self.joint_names}"
         
     def __repr__(self):
         return self.__str__()
@@ -60,11 +79,48 @@ class SktFile(object):
                 iff.enterChunk("INFO")
                 iff.exitChunk("INFO")
                 iff.enterChunk("NAME")
-                if not self.bones:
-                    self.bones = []
+                if not self.joint_names:
+                    self.joint_names = []
                 while not iff.atEndOfForm():
-                    self.bones.append(iff.read_string().lower())
+                    self.joint_names.append(iff.read_string().lower())
+                    self.joint_count += 1
                 iff.exitChunk("NAME")
+                iff.enterChunk("PRNT")
+                if not self.joint_parents:
+                    self.joint_parents = []
+                while not iff.atEndOfForm():
+                    self.joint_parents.append(iff.read_int32())
+                iff.exitChunk("PRNT")
+                iff.enterChunk("RPRE")
+                if not self.joint_pre_rotations:
+                    self.joint_pre_rotations = []
+                while not iff.atEndOfForm():
+                    self.joint_pre_rotations.append(iff.read_vector4())
+                iff.exitChunk("RPRE")
+                iff.enterChunk("RPST")
+                if not self.joint_post_rotations:
+                    self.joint_post_rotations = []
+                while not iff.atEndOfForm():
+                    self.joint_post_rotations.append(iff.read_vector4())
+                iff.exitChunk("RPST")
+                iff.enterChunk("BPTR")
+                if not self.joint_translations:
+                    self.joint_translations = []
+                while not iff.atEndOfForm():
+                    self.joint_translations.append(iff.read_vector3())
+                iff.exitChunk("BPTR")
+                iff.enterChunk("BPRO")
+                if not self.joint_bind_rotations:
+                    self.joint_bind_rotations = []
+                while not iff.atEndOfForm():
+                    self.joint_bind_rotations.append(iff.read_vector4())
+                iff.exitChunk("BPRO")
+                iff.enterChunk("JROR")
+                if not self.joint_rotation_order:
+                    self.joint_rotation_order = []
+                while not iff.atEndOfForm():
+                    self.joint_rotation_order.append(iff.read_int32())
+                iff.exitChunk("JROR")
                 iff.exitForm()
 
             else:
@@ -73,6 +129,7 @@ class SktFile(object):
         else:
             print(f"ERROR: Unsupported SLOD Version: {self.path} Version: {version}")
             return
+
 class LmgFile(object):
     __slots__ = ('path', 'mgns')
     def __init__(self, path, mgns):
@@ -2036,7 +2093,7 @@ class SWGMgn(object):
         self.occlusions = []
         self.occlusion_zones = None
         self.skeletons = []
-        self.bone_names = []
+        self.joint_names = []
 
         self.positions = []
         self.normals = []
@@ -2073,7 +2130,7 @@ class SWGMgn(object):
                 self.num_this_occludes: {len(self.occlusions)},
                 self.occlusion_layer: {self.occlusion_layer}
                 self.skeletons: {",".join(self.skeletons)}
-                self.bone_names: {",".join(self.bone_names)}
+                self.joint_names: {",".join(self.joint_names)}
                 self.positions: {len(self.positions)}
                 self.twhd: {len(self.twhd)}
                 self.twdt: {len(self.twdt)}
@@ -2159,7 +2216,7 @@ class SWGMgn(object):
         
         iff.enterChunk("XFNM")
         while not iff.atEndOfForm():
-            self.bone_names.append(iff.read_string())
+            self.joint_names.append(iff.read_string())
         iff.exitChunk("XFNM")
 
         iff.enterChunk("POSN")  
@@ -2465,7 +2522,7 @@ class SWGMgn(object):
         iff.insert_int32(self.max_transforms_vertex)
         iff.insert_int32(self.max_transforms_shader)
         iff.insert_int32(len(self.skeletons))
-        iff.insert_int32(len(self.bone_names))
+        iff.insert_int32(len(self.joint_names))
         iff.insert_int32(len(self.positions))
         iff.insert_int32(len([vv for v in self.twdt for vv in v ]))
         iff.insert_int32(len(self.normals))
@@ -2484,7 +2541,7 @@ class SWGMgn(object):
         iff.exitChunk("SKTM")
 
         iff.insertChunk("XFNM")
-        for bone in self.bone_names:
+        for bone in self.joint_names:
             iff.insertChunkString(bone)
         iff.exitChunk("XFNM")
 
