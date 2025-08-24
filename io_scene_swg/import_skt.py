@@ -7,7 +7,7 @@ from mathutils import Vector, Quaternion, Matrix
 import math
 
 def swg_quat_to_blender_quat(r):
-    q = Quaternion((r[0], r[1], r[3], r[2]))
+    q = Quaternion((-r[0], -r[1], r[2], r[3]))
     return q
 
 def rotate_point(point: Vector, pivot: Vector, rotation: Quaternion):
@@ -63,7 +63,9 @@ def import_skt(context, filepath):
         r = rpst @ bpro @ rpre
         children = bone.children
         for c in bone.children_recursive:
-            c.head = rotate_point(c.head, bone.head, r)
+            c.head = rotate_point(c.head, bone.head, rpre)
+            c.head = rotate_point(c.head, bone.head, bpro)
+            c.head = rotate_point(c.head, bone.head, rpst)
         ct = len(children)
         if ct > 0:
             tail_pos = Vector((0.0, 0.0, 0.0))
@@ -75,10 +77,14 @@ def import_skt(context, filepath):
                 c.use_connect = True
         elif bone.parent:
             bone.tail = bone.head + (bone.parent.vector * len(bone.head - bone.parent.head) * 0.25)
-            bone.tail = rotate_point(bone.tail, bone.head, r)
+            bone.tail = rotate_point(bone.tail, bone.head, rpre)
+            bone.tail = rotate_point(bone.tail, bone.head, bpro)
+            bone.tail = rotate_point(bone.tail, bone.head, rpst)
         else:
             bone.tail = bone.head + Vector((0.0, 0.1, 0.0))
-            bone.tail = rotate_point(bone.tail, bone.head, r)
+            bone.tail = rotate_point(bone.tail, bone.head, rpre)
+            bone.tail = rotate_point(bone.tail, bone.head, bpro)
+            bone.tail = rotate_point(bone.tail, bone.head, rpst)
     
     # Apply rotations
     bpy.ops.object.mode_set(mode = 'OBJECT')
