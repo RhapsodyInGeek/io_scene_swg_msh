@@ -214,10 +214,10 @@ def export_mgn(context,
                 running_tri_index += 1
 
     vertex_groups = current_obj.vertex_groups
-    bone_names = vertex_groups.keys()
+    joint_names = vertex_groups.keys()
     twdtdata = {}
-    for name in bone_names:
-        mgn.bone_names.append(name)
+    for name in joint_names:
+        mgn.joint_names.append(name)
         selverts = [v for v in bm.vertices]
         indexval = current_obj.vertex_groups[name].index
         for v in selverts:
