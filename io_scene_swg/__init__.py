@@ -23,7 +23,7 @@
 bl_info = {
     "name": "NSG SWG Tools",
     "author": "Nick Rafalski",
-    "version": (3, 0, 12),
+    "version": (3, 0, 9),
     "blender": (2, 81, 6),
     "location": "File > Import-Export",
     "description": "Import-Export SWG .msh, .mgn, .lod and .pob",
@@ -728,6 +728,10 @@ class ImportSKT(bpy.types.Operator, ImportHelper):
 
             print(f'IMPORTING: {self.filepath} {filepath}')
             result = import_skt.import_skt(context, filepath, **keywords)
+
+        # if 'ERROR' in result:
+        #     self.report({'ERROR'}, 'Something went wrong importing MESH')
+        #     return {'CANCELLED'}
         
         return {'FINISHED'}
 

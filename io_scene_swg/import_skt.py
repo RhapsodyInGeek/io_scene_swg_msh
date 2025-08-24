@@ -6,7 +6,11 @@ from bpy_extras.io_utils import unpack_list, unpack_face_list
 from mathutils import Vector, Quaternion, Matrix
 import math
 
-def swg_quat_mult(lhs: Quaternion, rhs: Quaternion):
+def swg_quat_to_blender_quat(r):
+    q = Quaternion((-r[0], -r[1], r[2], r[3])).inverted()
+    return q
+
+def swg_quat_multiply(lhs, rhs):
     epsilon: float = 1e-027
     if rhs[0] + epsilon >= 1.0:
         return lhs
@@ -19,55 +23,6 @@ def swg_quat_mult(lhs: Quaternion, rhs: Quaternion):
     q[2] = lhs[0] * rhs[1] + rhs[0] * lhs[1] + (lhs[3] * rhs[1] - lhs[1] * rhs[3])
     q[3] = lhs[0] * rhs[3] + rhs[0] * lhs[3] + (lhs[1] * rhs[1] - lhs[1] * rhs[1])
     return q
-
-# // ----------------------------------------------------------------------
-# /**
-#  * construct a quaternion representing the orientation specified by spinning
-#  * 'angle' number of radians around unit vector 'vector'.
-#  * 
-#  * Make sure 'vector' is normalized.  This routine will not normalize it
-#  * for you.
-#  * 
-#  * @param angle  [IN] angle to spin around vector (in radians)
-#  * @param vector  [IN] vector around which angle is spun (must be normalized)
-#  */
-
-# Quaternion::Quaternion(float angle, const Vector &vector) :
-# 	w(0.0f),
-# 	x(0.0f),
-# 	y(0.0f),
-# 	z(0.0f)
-# {
-# 	// -TRF- do a DEBUG_FATAL check on magnitude to ensure it is nearly 1.0
-
-# 	const float halfAngle    = 0.5f * angle;
-# 	const float sinHalfAngle = sin(halfAngle);
-
-# 	w = cos(halfAngle);
-# 	x = vector.x * sinHalfAngle;
-# 	y = vector.y * sinHalfAngle;
-# 	z = vector.z * sinHalfAngle;
-# }
-
-# Quaternion MayaConversions::convertRotation(const MEulerRotation &euler)
-# {
-# 	Quaternion qx(static_cast<real>(euler.x), Vector::unitX);
-# 	Quaternion qy(static_cast<real>(-euler.y), Vector::unitY);
-# 	Quaternion qz(static_cast<real>(-euler.z), Vector::unitZ);
-
-# 	switch (euler.order)
-# 	{
-# 		case MEulerRotation::kXYZ: return qz * (qy * qx);
-# 		case MEulerRotation::kYZX: return qx * (qz * qy);
-# 		case MEulerRotation::kZXY: return qy * (qx * qz);
-# 		case MEulerRotation::kXZY: return qy * (qz * qx);
-# 		case MEulerRotation::kYXZ: return qz * (qx * qy);
-# 		case MEulerRotation::kZYX: return qx * (qy * qz);
-# 	}
-
-# 	FATAL(true, ("should not reach here\n"));
-# 	return Quaternion(); //lint !e527 // unreachable // true, needed for MSVC
-# }
 
 def swg_get_transform_preserve_translation(t, q):
     epsilon: float = 1e-027
@@ -110,6 +65,56 @@ def swg_get_transform_preserve_translation(t, q):
     
     return t
 
+def swg_transform_set_position(t, v):
+    t[0][3] = v[0]
+    t[1][3] = v[1]
+    t[2][3] = v[2]
+    return t
+
+def swg_transform_invert(lhs, rhs):
+    # Transpose the upper 3x3 matrix
+    lhs[0][0] = rhs[0][0]
+    lhs[0][1] = rhs[1][0]
+    lhs[0][2] = rhs[2][0]
+
+    lhs[1][0] = rhs[0][1]
+    lhs[1][1] = rhs[1][1]
+    lhs[1][2] = rhs[2][1]
+
+    lhs[2][0] = rhs[0][2]
+    lhs[2][1] = rhs[1][2]
+    lhs[2][2] = rhs[2][2]
+
+    # Invert the translation
+    x = rhs[0][3]
+    y = rhs[1][3]
+    z = rhs[2][3]
+    lhs[0][3] = -(lhs[0][0]) * x + lhs[0][1] * y + lhs[0][2] * z
+    lhs[1][3] = -(lhs[1][0]) * x + lhs[1][1] * y + lhs[1][2] * z
+    lhs[2][3] = -(lhs[2][0]) * x + lhs[2][1] * y + lhs[2][2] * z
+
+    return lhs
+
+def swg_transform_multiply(lhs, rhs):
+    out = Matrix(([1.0,0.0,0.0,0.0],[0.0,1.0,0.0,0.0],[0.0,0.0,1.0,0.0]))
+
+    out[0][0] = lhs[0][0] * rhs[0][0] + lhs[0][1] * rhs[1][0] + lhs[0][2] * rhs[2][0]
+    out[0][1] = lhs[0][0] * rhs[0][1] + lhs[0][1] * rhs[1][1] + lhs[0][2] * rhs[2][1]
+    out[0][2] = lhs[0][0] * rhs[0][2] + lhs[0][1] * rhs[1][2] + lhs[0][2] * rhs[2][2]
+    out[0][3] = lhs[0][0] * rhs[0][3] + lhs[0][1] * rhs[1][3] + lhs[0][2] * rhs[2][3] + lhs[0][3]
+
+    out[1][0] = lhs[1][0] * rhs[0][0] + lhs[1][1] * rhs[1][0] + lhs[1][2] * rhs[2][0]
+    out[1][1] = lhs[1][0] * rhs[0][1] + lhs[1][1] * rhs[1][1] + lhs[1][2] * rhs[2][1]
+    out[1][2] = lhs[1][0] * rhs[0][2] + lhs[1][1] * rhs[1][2] + lhs[1][2] * rhs[2][2]
+    out[1][3] = lhs[1][0] * rhs[0][3] + lhs[1][1] * rhs[1][3] + lhs[1][3] * rhs[2][3] + lhs[1][3]
+
+    out[2][0] = lhs[2][0] * rhs[0][0] + lhs[2][1] * rhs[1][0] + lhs[2][2] * rhs[2][0]
+    out[2][1] = lhs[2][0] * rhs[0][1] + lhs[2][1] * rhs[1][1] + lhs[2][2] * rhs[2][1]
+    out[2][2] = lhs[2][0] * rhs[0][2] + lhs[2][1] * rhs[1][2] + lhs[2][2] * rhs[2][2]
+    out[2][3] = lhs[2][0] * rhs[0][3] + lhs[2][1] * rhs[1][3] + lhs[2][3] * rhs[2][3] + lhs[2][3]
+
+    return out
+
 def rotate_point(point: Vector, pivot: Vector, rotation: Quaternion):
     point -= pivot
     point.rotate(rotation)
@@ -121,10 +126,34 @@ def import_skt(context, filepath):
     skt = swg_types.SktFile(filepath)
     skt.load()
 
+    # # Construct joint positions
+    # joint_transforms = []
+    
+    # for i in range(skt.joint_count):
+    #     local_to_parent_transform = Matrix(([1.0,0.0,0.0,0.0],[0.0,1.0,0.0,0.0],[0.0,0.0,1.0,0.0]))
+    #     parent_to_local_transform = local_to_parent_transform
+
+    #     # Rotations
+    #     rotation = swg_quat_multiply(skt.joint_post_rotations[i], skt.joint_bind_rotations[i])
+    #     rotation = swg_quat_multiply(rotation, skt.joint_pre_rotations[i])
+    #     local_to_parent_transform = swg_get_transform_preserve_translation(local_to_parent_transform, rotation)
+
+    #     local_to_parent_transform = swg_transform_set_position(local_to_parent_transform, skt.joint_translations[i])
+
+    #     parent_to_local_transform = swg_transform_invert(parent_to_local_transform, local_to_parent_transform)
+
+    #     parent_id = skt.joint_parents[i]
+    #     if parent_id > -1:
+    #         joint_transforms.append(swg_transform_multiply(parent_to_local_transform, joint_transforms[parent_id]))
+    #     else:
+    #         joint_transforms.append(parent_to_local_transform)
+
+    # Create armature
     arm_name = filepath.split('\\')[-1].split('.')[0]
     arm = bpy.data.armatures.new(arm_name)
     arm_obj = bpy.data.objects.new(arm_name, arm)
     arm_obj.data.display_type = 'STICK'
+    arm_obj.data.show_names = True
     arm_obj.show_in_front = True
     #arm_obj.show_names = True
 
@@ -134,27 +163,37 @@ def import_skt(context, filepath):
     bpy.ops.object.mode_set(mode = 'EDIT')
 
     bones = []
+    rotations = []
 
     # Create bones
     for i in range(skt.joint_count):
         bone = arm.edit_bones.new(skt.joint_names[i])
+        bones.append(bone)
         bone.use_deform = True
         bone.use_inherit_rotation = True
-        bones.append(bone)
+        t = skt.joint_translations[i]
+        bone.head = Vector((-t[0], t[1], t[2]))
 
     # Parent bones and translate
     for i in range(skt.joint_count):
         bone = bones[i]
-        v = skt.joint_translations[i]
-        bone.head = Vector((v[0], v[2], v[1]))
         parent_id = skt.joint_parents[i]
         if parent_id > -1:
             bone.parent = bones[parent_id]
             bone.head += bone.parent.head
 
+    # Connect tails to children
     for i in range(skt.joint_count):
         bone = bones[i]
+        rpre = swg_quat_to_blender_quat(skt.joint_pre_rotations[i])
+        rpst = swg_quat_to_blender_quat(skt.joint_post_rotations[i])
+        bpro = swg_quat_to_blender_quat(skt.joint_bind_rotations[i])
         children = bone.children
+        for c in children:
+            c.head = rotate_point(c.head, bone.head, rpre)
+            c.head = rotate_point(c.head, bone.head, bpro)
+        for c in bone.children_recursive:
+            c.head = rotate_point(c.head, bone.head, rpst)
         ct = len(children)
         if ct > 0:
             tail_pos = Vector((0.0, 0.0, 0.0))
@@ -165,22 +204,29 @@ def import_skt(context, filepath):
             if ct == 1:
                 c.use_connect = True
         elif bone.parent:
-            bone.tail = bone.head + bone.parent.vector * 0.5 * len(bone.head - bone.parent.head)
+            bone.tail = bone.head + (bone.parent.vector * len(bone.head - bone.parent.head) * 0.25)
+            bone.tail = rotate_point(bone.tail, bone.head, rpst)
+            bone.tail = rotate_point(bone.tail, bone.head, bpro)
+            bone.tail = rotate_point(bone.tail, bone.head, rpre)
         else:
-            bone.tail = bone.head + Vector((0.0, 0.05, 0.0))
+            bone.tail = bone.head + Vector((0.0, 0.1, 0.0))
+            bone.tail = rotate_point(bone.tail, bone.head, rpst)
+            bone.tail = rotate_point(bone.tail, bone.head, bpro)
+            bone.tail = rotate_point(bone.tail, bone.head, rpre)
     
     # Apply rotations
     bpy.ops.object.mode_set(mode = 'OBJECT')
-    arm_obj.select_set(True)
     context.view_layer.objects.active = arm_obj
-    bpy.ops.object.mode_set(mode = 'POSE')
+    arm_obj.rotation_euler = (math.pi * 0.5, 0.0, 0.0)
+    bpy.ops.object.transform_apply()
+    # bpy.ops.object.mode_set(mode = 'POSE')
 
-    for i in range(skt.joint_count):
-        bone = bpy.context.object.pose.bones[skt.joint_names[i]]
-        v4 = swg_quat_mult(skt.joint_post_rotations[i], skt.joint_bind_rotations[i])
-        v4 = swg_quat_mult(v4, skt.joint_pre_rotations[i])
-        r = Quaternion((v4[0], v4[1], -v4[3], v4[2]))
-        bone.rotation_quaternion = r
+    # for i in range(skt.joint_count):
+    #     bone = bpy.context.object.pose.bones[skt.joint_names[i]]
+    #     rpst = swg_quat_to_blender_quat(skt.joint_post_rotations[i])
+    #     rpre = swg_quat_to_blender_quat(skt.joint_pre_rotations[i])
+    #     bpro = swg_quat_to_blender_quat(skt.joint_bind_rotations[i])
+    #     bone.rotation_quaternion = rpst
     
-    #bpy.ops.pose.armature_apply()
-    bpy.ops.object.mode_set(mode = 'OBJECT')
+    # #bpy.ops.pose.armature_apply()
+    # bpy.ops.object.mode_set(mode = 'OBJECT')
