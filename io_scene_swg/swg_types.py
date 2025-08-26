@@ -46,10 +46,10 @@ class SktFile(object):
         'joint_rotation_order'
         )
     
-    def __init__(self, path, joint_names = None):
+    def __init__(self, path):
         self.path = path
         self.joint_count = 0
-        self.joint_names = joint_names
+        self.joint_names = None
         self.joint_parents = None
         self.joint_pre_rotations = None
         self.joint_post_rotations = None
@@ -58,20 +58,28 @@ class SktFile(object):
         self.joint_rotation_order = None
 
     def __str__(self):
-        return f"{self.path}: Bones: {self.joint_names}"
+        return f"{self.path}"
         
     def __repr__(self):
         return self.__str__()
             
-    def load(self):
+    def load(self, sktm_id = 0):
         iff = nsg_iff.IFF(filename=self.path)
         iff.enterForm("SLOD")
         version=iff.getCurrentName()
         if version in ['0000']:
             iff.enterForm(version)
             iff.enterChunk("INFO")
+            sktm_ct = iff.read_int16()
             iff.exitChunk("INFO")
+
+            # Loop through SKTMs to find the one we're looking for
+            if sktm_id >= sktm_ct:
+                sktm_id = sktm_ct - 1
             iff.enterForm("SKTM")
+            for i in range(sktm_id):
+                iff.exitForm("SKTM")
+                iff.enterForm("SKTM")
             
             sktm_version=iff.getCurrentName()
             if sktm_version in ['0002']:

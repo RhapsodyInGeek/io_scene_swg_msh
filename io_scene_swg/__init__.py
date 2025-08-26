@@ -52,6 +52,7 @@ if "bpy" in locals():
     importlib.reload(import_pob)
     importlib.reload(export_pob)
     importlib.reload(import_skt)
+    importlib.reload(export_skt)
 else:
     from . import support
     from . import extents
@@ -70,6 +71,7 @@ else:
     from . import import_pob
     from . import export_pob
     from . import import_skt
+    from . import export_skt
 
 from glob import glob
 import bpy
@@ -260,7 +262,6 @@ class ExportMSH(bpy.types.Operator, ExportHelper):
     def draw(self, context):
         pass
 
-
 class MSH_PT_export_option(bpy.types.Panel):
     bl_space_type = 'FILE_BROWSER'
     bl_region_type = 'TOOL_PROPS'
@@ -303,7 +304,6 @@ class MGN_PT_import_option(bpy.types.Panel):
         operator = sfile.active_operator
         layout.prop(operator, "axis_forward")
         layout.prop(operator, "axis_up")
-
 
 @orientation_helper(axis_forward='Z', axis_up='Y')
 class ImportMGN(bpy.types.Operator, ImportHelper):
@@ -525,7 +525,6 @@ class ExportLOD(bpy.types.Operator, ExportHelper):
     def draw(self, context):
         pass
 
-
 class LOD_PT_export_option(bpy.types.Panel):
     bl_space_type = 'FILE_BROWSER'
     bl_region_type = 'TOOL_PROPS'
@@ -724,16 +723,37 @@ class ImportSKT(bpy.types.Operator, ImportHelper):
         for f in self.files:   
             dirname = os.path.dirname(self.filepath)
             filepath = os.path.join(dirname, f.name)
-            
-
             print(f'IMPORTING: {self.filepath} {filepath}')
             result = import_skt.import_skt(context, filepath, **keywords)
-
-        # if 'ERROR' in result:
-        #     self.report({'ERROR'}, 'Something went wrong importing MESH')
-        #     return {'CANCELLED'}
         
         return {'FINISHED'}
+
+    def draw(self, context):
+        pass
+
+class ExportSKT(bpy.types.Operator, ExportHelper):
+    """Save a SWG .skt File"""
+
+    bl_idname = "export_scene.skt"
+    bl_label = 'Export Skt'
+    bl_description = "Export SWG Skeleton. Note, the filename you give won't be used, but the directory will. The final .skt filename will be the name of the Blender collection."
+    bl_options = {'PRESET'}
+
+    filename_ext = ".skt"
+    filter_glob: StringProperty(default="*.skt", options={'HIDDEN'})
+
+    def invoke(self, context, _event):
+        if context.preferences.addons[__package__].preferences.swg_root != "":            
+            self.filepath = context.preferences.addons[__package__].preferences.swg_root +"/appearance/skeleton/"
+
+        self.filepath += "THE BLENDER COLLECTION NAME WILL BE USED AS THE FILENAME, EXPORTED INTO THIS DIRECTORY!"
+
+        context.window_manager.fileselect_add(self)
+        return {'RUNNING_MODAL'}
+
+    def execute(self, context):
+        keywords = self.as_keywords(ignore=("filter_glob"))
+        return export_skt.save(context, **keywords)
 
     def draw(self, context):
         pass
@@ -750,6 +770,7 @@ def export_operators(self, context):
     self.layout.operator(ExportMSH.bl_idname, text="SWG Static Mesh (.msh)")
     self.layout.operator(ExportLOD.bl_idname, text="SWG Static Level of Detail (.lod)")
     self.layout.operator(ExportPOB.bl_idname, text="SWG Portalized Object (.pob)")
+    self.layout.operator(ExportSKT.bl_idname, text="SWG Skeleton (.skt)")
 
 def dump(obj, text):
     for attr in dir(obj):
@@ -1562,6 +1583,7 @@ classes = (
     ExportPOB,
     POB_PT_export_option,
     ImportSKT,
+    ExportSKT,
     SWG_Load_Materials_Operator,
     SWG_Add_Material_Operator,
     SWG_Create_Apt_For_Msh,

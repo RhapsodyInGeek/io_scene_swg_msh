@@ -49,8 +49,6 @@ def mesh_triangulate(me):
     bm.to_mesh(me)
     bm.free()
 
-
-
 def save(context,
          filepath,
          *,
