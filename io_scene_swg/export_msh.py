@@ -159,7 +159,6 @@ def export_one(fullpath, extract_dir, obj, flip_uv_vertical):
         unique_verts={}
         last_unique_vert_index=0
         for face_index, face in enumerate(face_list):
-
             p1 = p2 = p3 = None
             for uv_index, l_index in enumerate(face.loop_indices):
                 v = me.vertices[face.vertices[uv_index]]
@@ -182,6 +181,9 @@ def export_one(fullpath, extract_dir, obj, flip_uv_vertical):
                         swg_v.color1 = me.vertex_colors["color1"].data[l_index].color
 
                     for i in range(0, uvSets):
+                        if i >= len(me.uv_layers):
+                            break
+
                         uv = me.uv_layers[i].data[l_index].uv.copy()
 
                         if flip_uv_vertical:
