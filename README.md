@@ -1,8 +1,35 @@
 # io_scene_swg
-A Blender add-on for importing and exporting Star Wars Galaxies static (.msh) and animated (.mgn) mesh files
-## Blender Version Support
+A Blender add-on for importing and exporting various Star Wars Galaxies asset formats.
+
+### Blender Version Support
 Should work with Blender 2.9+ and 3+
-## Features
+
+### Features
+- Import / export formats:
+ - mgn (Animated Mesh)
+ - msh (Static Mesh)
+ - lod (Level of Detail Static Mesh Group)
+ - pob (Portalized Object)
+ - skt (Skeleton)
+- Generate .apt, .sat and .lmg files
+- Generate materials from .sht (shader) files
+- Generate .pob hierarchies
+
+### Recommended External Tools
+- [Sytner's Iff Editor (SIE)](https://modthegalaxy.com/index.php?resources/sie.1/)
+  - Tool used to edit almost all of SWG's file types.
+  - Requires forum account to download.
+- [Krita](https://krita.org/en/)
+  - Free and open source image editing software. Very handy replacement for Photoshop.
+- [NVIDIA Texture Tools Exporter](https://developer.nvidia.com/texture-tools-exporter)
+  - Standalone app recommended. Useful for converting image types like PNG into DDS textures useable by SWG.
+  - Included in this repository is `swg_dds_nvidia_tex_tools_preset.dpf`, a preset for the Texture Tools that works with SWG's DDS support.
+  - Can accurately display DDS files and will show where errors in your textures will occur (typically caused by alpha transparency in PNGs).
+  - Requires signing in with a NVIDIA Account. The tools are free, but can be a bit of a hassle to download.
+- Krita DDS Python Plugin [Import](https://github.com/esuriddick/Programming/tree/main/Python/Krita/DDS_File_Importer) / [Export](https://github.com/esuriddick/Programming/tree/main/Python/Krita/DDS_File_Exporter)
+  - An alternative to the NVIDIA Texture Tools. It's a bit clunky and doesn't have a way to show you if you screwed something up before you get into the game, but it works.
+
+## How To Use
 
 ### General SWG helper functions
 * In the 3D View toolbar (contains menus like "View", "Select", "Object", etc), the very furthest right menu will be "SWG". This is where you can find some helper functions. NOTE: For many of these to work, you need to set the "SWG Client Extract Dir" path in the add-on preferences. This is a directory containing the full directory structure from a "Full Client Extract" via SIE. It should be the directory which contains child directories like "appearance", "shader" and "texture"
@@ -14,7 +41,7 @@ Should work with Blender 2.9+ and 3+
   * "Create a SWG .sat and .lmg for this .mgn": Creates .sat and .lmg files at the browsed path representing the SAT->LMG->MGN file chain. The reference inside the LMG will always be "mesh/\<currently selected object name\>.mgn" so change your object name accordingly.
   * "Generate Blend Shapes From Other": Attempts to use the shape key deltas in one mesh to create shape keys in another. Use Ctrl+click to select 2 meshes. The first is the source and the second is the destination. For every shape key in source, this will create a same-named shape key in destination. In addition, it will actually try to update the vertex deltas in destination's shap keys. It does this by finding the closest vertex in source, and applying the same delta it had in this shape key. This works okay, but not amazing.
 
-### MSH Import/Export:
+### MSH (Static Mesh) Import / Export:
 * Import and Export SWG .msh file (versions 0004 and 0005)
 * Since version 2.0.0, multi-shader MSHs are imported as one Blender mesh with per-face material assignemnt. Materials are created and properly assigned per shader used in the .msh
 * UVs: Multiple UV sets are fully supported for import/export per material. When 1 shader uses multiple UV channels, you need to be sure to use the "UVSets" custom property properly:
@@ -34,11 +61,10 @@ Should work with Blender 2.9+ and 3+
     * Ctrl+P -> Object 
 * Import option to "Remove Duplicate Verts". Shouldn't be needed in most cases, but will remove verts that are in the same 3D space and merge them. 
 
-### MGN Import/Export:
-
+### MGN (Animated Mesh) Import / Export:
 * Imports base mesh, UV, Shader Name, Bone names, Vertex weights, Blends, occlusion zones, and skeleton name as follows:
-  * The mesh is obviously the active imported object.
-  * Bone names are Imported as vertex groups.
+  * The mesh is the active imported object.
+  * Joint names are imported as vertex groups.
   * Vertex weights are imported and assigned relative to the vertex groups they belong to.
   * Blends are imported as shape keys.
   * Occlusion layer (2 for most wearables) is stored in the custom property, "OCC_LAYER"
@@ -71,6 +97,42 @@ MGN Workflow Notes:
 
 Limitations:
 * MGN Hardpoints and Texture Renderers are stored as binary data in a Custom Property on import, but there is no edit support for these. The existing data will be rewritten at export.  
-* If you export an MGN with Face Maps while in Blender's Edit Mode, the Face Map data is not properly retrieved so Occlusion Triangles are not properly set. This will usually result in ALL of your mesh's triangles belonging to the first defined Occlusion zone which can do funky things like a helmet hiding all the geometry on a species' body. Exporting in Object Mode seems to work more reliably.  
+* If you export an MGN with Face Maps while in Blender's Edit Mode, the Face Map data is not properly retrieved so Occlusion Triangles are not properly set. This will usually result in ALL of your mesh's triangles belonging to the first defined Occlusion zone which can do funky things like a helmet hiding all the geometry on a species' body. Exporting in Object Mode seems to work more reliably.
 
+### SKT (Skeleton) Import / Export:
+- Imports skeleton LOD, joint name, parenting, rotation, and position data and converts it into multiple armature objects.
+  - SWG skeletons can have 1 to 4 levels of detail (LOD). Skeletal animation can get pretty expensive, so each LOD is used to reduce joint counts. Each LOD is imported as a separate armature object.
+  - When creating a new skeleton from scratch, create a separate collection for them and place all of your skeleton's LOD armatures within it. You can see the expected structure by importing an existing skeleton.
+  - LOD order in the skeleton is determined by the armature order in the skeleton collection, highest detail to lowest in descending order.
+  - Using LODs is good! Don't eliminate them if it can be helped. They can be essential for performance on some users' machines!
+  - Most skeletons will have 3 or 4 LODs, depending upon their complexity.
+- SWG uses joints instead of bones. The difference is that joints have no length, only position and rotation, whereas bones have all three.
+  - The importer will calculate tail positions based on 3 conditions:
+   - If the bone has children, the tail position will be the averaged position of all child head positions. If there is only one child, the bone will be connected.
+   - If the bone has no children but it has a parent, the tail will continue along the trajectory of the parent for half of its length.
+   - If the bone has no children and no parent, then it will move positively on the Y-axis at a distance of 0.05.
+- Rotation data in the skeleton is saved per joint and comprised of Pre-Multiply Rotations (RPRE), Bind Pose Rotations (BPRO), and Post-Multiply Rotations (RPST). These are a carryover from Maya, the modeling program uses to animate the characters in SWG.
+  - These rotations are only used to transform the joint positions in-game. Animations only use the final transformed joint translations, so baking these rotations into the bone head positions and setting them all to (0.0, 1.0, 0.0, 0.0) on export has no apparent effect. The exporter takes care of this automatically for you.
+- When exporting the skeleton, the the portion of the collection name prior to any `.` will be used, eg: a collection named `weegee.bunchofnumbers` will be exported as `weegee.skt`.
+  - Armature names are ignored. A naming convention of `<skeleton name>_skt_l<detail level>` is recommended but not necessary.
+  - Only deform bones are exported. This allows for the use of control bones like IK while animating (animations are not yet supported!).
 
+### POB (Portalized Object) Import / Export:
+- Portalized Objects are objects that contain interiors that can be traversed by other objects, like buildings or caves or bigger spaceships like the YT-2400. They are composite objects comprised of many different parts and are some of the most complex and interesting objects in the game.
+  - POBs are divided into rooms. They always contain one exterior "room", known as "r0", and at least (but not limited to) one interior room.
+  - Room 0, the exterior, will also have an LOD associated with it, usually with 4 detail level static meshes.
+  - All other rooms only ever have 1 static mesh.
+  - Each room is connected to each other by objects known as a "portals". Portals act as windows between rooms, allowing players to view into the next room through them.
+  - Each room also contains a "floor" object, dictating where a mobile object may traverse.
+    - Floor objects typically have NPC pathfinding nodes referred to as "Cell Waypoints".
+  - Some rooms may possess collider objects, which may be simple shapes or meshes. Some rooms contain none, as the floor object suffices for collision. These are often used to block character line of sight.
+- Due to the complex hierarchy required of POBs, the SWG Helper Functions Menu contains a function to generate a POB hierarchy for you. It is highly recommended to use this as a starting point for any POB projects.
+- Studying NoStyleGuy's [POB Tutorial](https://github.com/nostyleguy/io_scene_swg_msh/wiki/Portalized-Object-(POB)) is a must.
+
+## Tool Credits
+- [Nick "NoStyleGuy" Rafalski](https://github.com/nostyleguy)
+  - Tool creator
+- [Tim "RhapsodyInGeek" Maccabe](https://github.com/RhapsodyInGeek)
+  - .skt import / export
+- [Vera "sinewavey" Lux](https://github.com/sinewavey)
+  - .skt import, .skt rotation transform math
