@@ -6,11 +6,11 @@ Should work with Blender 2.9+ and 3+
 
 ### Features
 - Import / export formats:
- - mgn (Animated Mesh)
- - msh (Static Mesh)
- - lod (Level of Detail Static Mesh Group)
- - pob (Portalized Object)
- - skt (Skeleton)
+  - mgn (Animated Mesh)
+  - msh (Static Mesh)
+  - lod (Level of Detail Static Mesh Group)
+  - pob (Portalized Object)
+  - skt (Skeleton)
 - Generate .apt, .sat and .lmg files
 - Generate materials from .sht (shader) files
 - Generate .pob hierarchies
