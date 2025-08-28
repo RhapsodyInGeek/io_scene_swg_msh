@@ -759,18 +759,18 @@ class ExportSKT(bpy.types.Operator, ExportHelper):
         pass
 
 def import_operators(self, context):
-    self.layout.operator(ImportMGN.bl_idname, text="SWG Animated Mesh (.mgn)")
-    self.layout.operator(ImportMSH.bl_idname, text="SWG Static Mesh (.msh)")
     self.layout.operator(ImportLOD.bl_idname, text="SWG Static Level of Detail (.lod)")
-    self.layout.operator(ImportPOB.bl_idname, text="SWG Portalized Object (.pob)")
+    self.layout.operator(ImportMSH.bl_idname, text="SWG Static Mesh (.msh)")
+    self.layout.operator(ImportMGN.bl_idname, text="SWG Animated Mesh (.mgn)")
     self.layout.operator(ImportSKT.bl_idname, text="SWG Skeleton (.skt)")
+    self.layout.operator(ImportPOB.bl_idname, text="SWG Portalized Object (.pob)")
 
 def export_operators(self, context):
-    self.layout.operator(ExportMGN.bl_idname, text="SWG Animated Mesh (.mgn)")
-    self.layout.operator(ExportMSH.bl_idname, text="SWG Static Mesh (.msh)")
     self.layout.operator(ExportLOD.bl_idname, text="SWG Static Level of Detail (.lod)")
-    self.layout.operator(ExportPOB.bl_idname, text="SWG Portalized Object (.pob)")
+    self.layout.operator(ExportMSH.bl_idname, text="SWG Static Mesh (.msh)")
+    self.layout.operator(ExportMGN.bl_idname, text="SWG Animated Mesh (.mgn)")
     self.layout.operator(ExportSKT.bl_idname, text="SWG Skeleton (.skt)")
+    self.layout.operator(ExportPOB.bl_idname, text="SWG Portalized Object (.pob)")
 
 def dump(obj, text):
     for attr in dir(obj):
