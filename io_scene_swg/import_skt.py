@@ -10,6 +10,8 @@
 # Blender bones have a head and a tail, so any bones without children to connect to 
 # require their tail positions to be guessed. This can lead to some strange looking 
 # bone orientations and may require manual post work to clean up.
+#
+# The importer will create a collection and import each SKT's LODs in as separate armatures.
 
 import bpy
 from . import swg_types
@@ -28,9 +30,10 @@ def import_skt(context, filepath):
 
     for skt_index in range(4):
         skt = swg_types.SktFile(filepath)
-        skt.load(skt_index)
+        if skt.load(skt_index) == False:
+            break
 
-        arm_name = skt_name + "_l" + str(skt_index)
+        arm_name = skt_name + "_skt_l" + str(skt_index)
         arm = bpy.data.armatures.new(arm_name)
         arm_obj = bpy.data.objects.new(arm_name, arm)
         arm_obj.data.display_type = 'STICK'

@@ -752,7 +752,7 @@ class ExportSKT(bpy.types.Operator, ExportHelper):
         return {'RUNNING_MODAL'}
 
     def execute(self, context):
-        keywords = self.as_keywords(ignore=("filter_glob"))
+        keywords = self.as_keywords(ignore=("filter_glob", "check_existing"))
         return export_skt.save(context, **keywords)
 
     def draw(self, context):

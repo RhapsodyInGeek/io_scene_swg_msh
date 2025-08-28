@@ -73,9 +73,11 @@ class SktFile(object):
             sktm_ct = iff.read_int16()
             iff.exitChunk("INFO")
 
+            # Invalid skeleton ID
+            if sktm_id >= sktm_ct or sktm_id < 0:
+                return False
+            
             # Loop through SKTMs to find the one we're looking for
-            if sktm_id >= sktm_ct:
-                sktm_id = sktm_ct - 1
             iff.enterForm("SKTM")
             for i in range(sktm_id):
                 iff.exitForm("SKTM")
@@ -131,12 +133,14 @@ class SktFile(object):
                 iff.exitChunk("JROR")
                 iff.exitForm()
 
+                return True
+
             else:
                 print(f"ERROR: Unsupported SKTM Version: {self.path} Version: {sktm_version}")
-                return
+                return False
         else:
             print(f"ERROR: Unsupported SLOD Version: {self.path} Version: {version}")
-            return
+            return False
 
 class LmgFile(object):
     __slots__ = ('path', 'mgns')
