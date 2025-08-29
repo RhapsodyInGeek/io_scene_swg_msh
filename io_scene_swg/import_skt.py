@@ -28,7 +28,7 @@ def import_skt(context, filepath):
     collection = bpy.data.collections.new(skt_name + ".skt")
     context.scene.collection.children.link(collection)
 
-    for skt_index in range(4):
+    for skt_index in range(10):
         skt = swg_types.SktFile(filepath)
         if skt.load(skt_index) == False:
             break
