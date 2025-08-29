@@ -37,36 +37,38 @@ def mesh_triangulate(me):
     bm.to_mesh(me)
     bm.free()
 
-def export_mgn(context, 
-               filepath, 
-               *,
-               do_tangents = True):    
-    starttime = time.time()
-    
-    s=context.preferences.addons[__package__].preferences.swg_root
-    #s="E:/SWG_Legends_Dev/clientside_git_repo/"
-    #print(f"Root: {str(s)}")
-
-    current_obj = None
+def save(context, filepath, *, do_tangents = True):
     objects = context.selected_objects
 
-    if not (len(objects) == 1):
-        return {'ERROR'}
+    if len(objects) == 0:
+        print(f"Nothing selected. Aborting!")
+        return {'CANCELLED'}
+    else:
+        print(f"Objects to export: {len(objects)}")
 
-    for ob_main in objects:
-        obs = [(ob_main, ob_main.matrix_world)]
-        for ob, ob_mat in obs:
-            if ob.type != 'MESH':
-                return False
-            else:
-                current_obj = ob
-                mb = current_obj.matrix_basis
-                if hasattr(current_obj.data, "transform"):
-                    current_obj.data.transform(mb)
-                    
-                current_obj.matrix_basis.identity()
+    for obj in objects:
+        print(f"Exporting: {obj.name}")
+        if obj.type != 'MESH':
+            print(f"Skipping {obj.name} with type: {obj.type}")
+            continue
+        else:
+            dirname = os.path.dirname(filepath)
+            fullpath = os.path.join(dirname, obj.name + ".msh")
+            extract_dir=context.preferences.addons[__package__].preferences.swg_root
+            result = export_mgn(fullpath, extract_dir, obj, do_tangents)
+            if not 'FINISHED' in result:
+                return {'CANCELLED'}
+    return {'FINISHED'}
+
+def export_mgn(filepath, extract_dir, obj, do_tangents = True):    
+    starttime = time.time()
+
+    mb = obj.matrix_basis
+    if hasattr(obj.data, "transform"):
+        obj.data.transform(mb)
+    obj.matrix_basis.identity()
                 
-    bm = current_obj.to_mesh() 
+    bm = obj.to_mesh() 
     mesh_triangulate(bm)
     
     bm.calc_normals_split()
@@ -84,25 +86,25 @@ def export_mgn(context,
 
 
     dirname = os.path.dirname(filepath)
-    fullpath = os.path.join(dirname, ob.name+".mgn")
-    mgn = swg_types.SWGMgn(fullpath, s)
+    fullpath = os.path.join(dirname, obj.name + ".mgn")
+    mgn = swg_types.SWGMgn(fullpath, extract_dir)
 
     i = 0
-    for key in current_obj.keys():
+    for key in obj.keys():
         if key.startswith("SKTM_"):
-            mgn.skeletons.append(current_obj[key])
+            mgn.skeletons.append(obj[key])
         elif key.startswith("OZN_"):
             name=key.replace("OZN_","")
-            mgn.occlusions.append([name, i, current_obj[key]])
+            mgn.occlusions.append([name, i, obj[key]])
             #print(f"Added occlusion {str(i)}: {name}")
             i += 1
         elif key == "OCC_LAYER":
-            mgn.occlusion_layer = current_obj[key]
+            mgn.occlusion_layer = obj[key]
         elif key == "HPTS":
-            hpts_bytes = base64.b64decode(current_obj["HPTS"])
+            hpts_bytes = base64.b64decode(obj["HPTS"])
             mgn.binary_hardpoints = hpts_bytes
         elif key == "TRTS":
-            trts_bytes = base64.b64decode(current_obj["TRTS"])
+            trts_bytes = base64.b64decode(obj["TRTS"])
             mgn.binary_trts = trts_bytes
 
     if len(mgn.skeletons) == 0:
@@ -163,7 +165,7 @@ def export_mgn(context,
         running_tri_index = 0
         faces = faces_by_material[material_index]
         psdt = swg_types.SWGPerShaderData()
-        psdt.name = current_obj.material_slots[material_index].material.name
+        psdt.name = obj.material_slots[material_index].material.name
         mgn.psdts.append(psdt)
 
         reverse_position_lookup={}
@@ -213,13 +215,13 @@ def export_mgn(context,
 
                 running_tri_index += 1
 
-    vertex_groups = current_obj.vertex_groups
+    vertex_groups = obj.vertex_groups
     joint_names = vertex_groups.keys()
     twdtdata = {}
     for name in joint_names:
         mgn.joint_names.append(name)
         selverts = [v for v in bm.vertices]
-        indexval = current_obj.vertex_groups[name].index
+        indexval = obj.vertex_groups[name].index
         for v in selverts:
             for n in v.groups:
                 if n.group == indexval:
@@ -229,10 +231,10 @@ def export_mgn(context,
     od = collections.OrderedDict(sorted(twdtdata.items()))
     mgn.twdt = list(od.values())
 
-    if len(current_obj.face_maps) > 0:
+    if len(obj.face_maps) > 0:
         mgn.occlusion_zones=[]
 
-        face_maps = current_obj.face_maps
+        face_maps = obj.face_maps
 
         face_map_names_by_index={}
 
@@ -241,7 +243,7 @@ def export_mgn(context,
             mgn.occlusion_zones.append([face_map.name, []])
 
         print(f"Occlusion Zones: {str(mgn.occlusion_zones)}")
-        mesh_face_maps = current_obj.data.face_maps.active.data
+        mesh_face_maps = obj.data.face_maps.active.data
 
         for i, mesh_face_map in enumerate(mesh_face_maps):
             n=face_maps[mesh_face_map.value].index     

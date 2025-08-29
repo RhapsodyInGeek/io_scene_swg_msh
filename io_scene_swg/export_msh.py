@@ -47,14 +47,7 @@ def mesh_triangulate(me):
     bm.to_mesh(me)
     bm.free()
 
-
-
-def save(context,
-         filepath,
-         *,
-         flip_uv_vertical=False
-         ):
-
+def save(context, filepath, *, flip_uv_vertical=False):
     objects = context.selected_objects
 
     if len(objects) == 0:

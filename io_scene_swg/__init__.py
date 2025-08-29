@@ -53,6 +53,8 @@ if "bpy" in locals():
     importlib.reload(export_pob)
     importlib.reload(import_skt)
     importlib.reload(export_skt)
+    importlib.reload(export_lmg)
+    importlib.reload(export_sat)
 else:
     from . import support
     from . import extents
@@ -72,6 +74,8 @@ else:
     from . import export_pob
     from . import import_skt
     from . import export_skt
+    from . import export_lmg
+    from . import export_sat
 
 from glob import glob
 import bpy
@@ -349,12 +353,8 @@ class ExportMGN(bpy.types.Operator, ExportHelper):
     bl_description = 'Export a SWG Animated Mesh.'
 
     filename_ext = ".mgn"
-    filter_glob: StringProperty(
-            default="*.mgn",
-            options={'HIDDEN'},
-            )
-
-    do_tangents : BoolProperty(name='DOT3', description="Include DOT3 tangent vectors.", default=True) 
+    filter_glob: StringProperty(default="*.mgn", options={'HIDDEN'})
+    do_tangents : BoolProperty(name='DOT3', description="Include DOT3 tangent vectors.", default=True)
     
     def invoke(self, context, _event):
         import os
@@ -375,7 +375,7 @@ class ExportMGN(bpy.types.Operator, ExportHelper):
 
         keywords = self.as_keywords(ignore=("check_existing","filter_glob"))
         print(f"Keyword args: {str(keywords)}")
-        result = export_mgn.export_mgn(context, **keywords)
+        result = export_mgn.save(context, **keywords)
         if 'ERROR' in result:
             self.report({'ERROR'}, 'Something went wrong exporting MGN')
             return {'CANCELLED'}
@@ -548,6 +548,63 @@ class LOD_PT_export_option(bpy.types.Panel):
         
         layout.prop(operator, 'flip_uv_vertical')
         layout.prop(operator, 'export_children')
+
+class ExportLMG(bpy.types.Operator, ExportHelper):
+    """Save a SWG .lmg File"""
+
+    bl_idname = "export_scene.lmg"
+    bl_label = 'Export LMG'
+    bl_description = "Export SWG Animated Meshes. Note, the filename you give won't be used, but the directory will. The final .lmg filename will be whatever the name of the Blender collection is."
+    bl_options = {'PRESET'}
+
+    filename_ext = ".lmg"
+    filter_glob: StringProperty(default="*.lmg", options={'HIDDEN'})
+    
+    export_mesh_objects: BoolProperty(
+            name="Export Mesh Objects",
+            description="When checked, will export mesh objects to individual .mgn files. Uncheck to save export time if you haven't modified the mesh objects.",
+            default=True,
+            )
+    
+    do_tangents : BoolProperty(name='DOT3', description="Include DOT3 tangent vectors.", default=True)
+
+    def invoke(self, context, _event):
+        
+        if context.preferences.addons[__package__].preferences.swg_root != "":            
+            self.filepath = context.preferences.addons[__package__].preferences.swg_root +"/appearance/mesh/"
+
+        self.filepath += "THE BLENDER COLLECTION NAME WILL BE USED AS THE FILENAME, EXPORTED INTO THIS DIRECTORY!"
+
+        context.window_manager.fileselect_add(self)
+        return {'RUNNING_MODAL'}
+
+    def execute(self, context):
+        keywords = self.as_keywords(ignore=("filter_glob", "check_existing"))
+        return export_lmg.save(context, **keywords)
+
+    def draw(self, context):
+        pass
+
+class LMG_PT_export_option(bpy.types.Panel):
+    bl_space_type = 'FILE_BROWSER'
+    bl_region_type = 'TOOL_PROPS'
+    bl_label = "Option"
+    bl_parent_id = "FILE_PT_operator"
+
+    @classmethod
+    def poll(cls, context):
+        sfile = context.space_data
+        operator = sfile.active_operator
+        return operator.bl_idname == "EXPORT_SCENE_OT_lod"
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False  # No animation.
+        sfile = context.space_data
+        operator = sfile.active_operator
+        layout.prop(operator, 'export_mesh_objects')
+        layout.prop(operator, 'do_tangents')
 
 class ImportPOB(bpy.types.Operator, ImportHelper):
     """Load a SWG POB File"""
@@ -733,7 +790,6 @@ class ImportSKT(bpy.types.Operator, ImportHelper):
 
 class ExportSKT(bpy.types.Operator, ExportHelper):
     """Save a SWG .skt File"""
-
     bl_idname = "export_scene.skt"
     bl_label = 'Export Skt'
     bl_description = "Export SWG Skeleton. Note, the filename you give won't be used, but the directory will. The final .skt filename will be the name of the Blender collection."
@@ -758,6 +814,64 @@ class ExportSKT(bpy.types.Operator, ExportHelper):
     def draw(self, context):
         pass
 
+class ExportSAT(bpy.types.Operator, ExportHelper):
+    """Save a SWG .sat File"""
+
+    bl_idname = "export_scene.sat"
+    bl_label = 'Export SAT'
+    bl_description = "Export SWG Skeletal Appearance Template. Note, the filename you give won't be used, but the directory will. The final .sat filename will be whatever the name of the Blender collection is."
+    bl_options = {'PRESET'}
+
+    filename_ext = ".sat"
+    filter_glob: StringProperty(default="*.sat", options={'HIDDEN'})
+
+    create_anim_controller : BoolProperty(name='Create Animation Controller', description="Sets the state of the Create Animation Controller setting in the SAT's INFO chunk.", default=True)
+    export_lmgs: BoolProperty(name="Export LMGs", description="When checked, will export LMG collections to individual .lmg files.", default=True)
+    export_mgns: BoolProperty(name="Export Mesh Objects", description="When checked, will export mesh objects to individual .mgn files.", default=True)
+    do_tangents : BoolProperty(name='DOT3', description="Include DOT3 tangent vectors.", default=True)
+    export_skts: BoolProperty(name="Export Skeletons", description="When checked, will export skeleton collections to individual .skt files.", default=True)
+
+    def invoke(self, context, _event):
+        
+        if context.preferences.addons[__package__].preferences.swg_root != "":            
+            self.filepath = context.preferences.addons[__package__].preferences.swg_root +"/appearance/mesh/"
+
+        self.filepath += "THE BLENDER COLLECTION NAME WILL BE USED AS THE FILENAME, EXPORTED INTO THIS DIRECTORY!"
+
+        context.window_manager.fileselect_add(self)
+        return {'RUNNING_MODAL'}
+
+    def execute(self, context):
+        keywords = self.as_keywords(ignore=("filter_glob", "check_existing"))
+        return export_sat.save(context, **keywords)
+
+    def draw(self, context):
+        pass
+
+class SAT_PT_export_option(bpy.types.Panel):
+    bl_space_type = 'FILE_BROWSER'
+    bl_region_type = 'TOOL_PROPS'
+    bl_label = "Option"
+    bl_parent_id = "FILE_PT_operator"
+
+    @classmethod
+    def poll(cls, context):
+        sfile = context.space_data
+        operator = sfile.active_operator
+        return operator.bl_idname == "EXPORT_SCENE_OT_lod"
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False  # No animation.
+        sfile = context.space_data
+        operator = sfile.active_operator
+        layout.prop(operator, 'create_anim_controller')
+        layout.prop(operator, 'export_lmgs')
+        layout.prop(operator, 'export_mgns')
+        layout.prop(operator, 'do_tangents')
+        layout.prop(operator, 'export_skts')
+
 def import_operators(self, context):
     self.layout.operator(ImportLOD.bl_idname, text="SWG Static Level of Detail (.lod)")
     self.layout.operator(ImportMSH.bl_idname, text="SWG Static Mesh (.msh)")
@@ -768,6 +882,8 @@ def import_operators(self, context):
 def export_operators(self, context):
     self.layout.operator(ExportLOD.bl_idname, text="SWG Static Level of Detail (.lod)")
     self.layout.operator(ExportMSH.bl_idname, text="SWG Static Mesh (.msh)")
+    self.layout.operator(ExportSAT.bl_idname, text="SWG Skeletal Animation Template (.sat)")
+    self.layout.operator(ExportLMG.bl_idname, text="SWG Animated Level of Detail (.lmg)")
     self.layout.operator(ExportMGN.bl_idname, text="SWG Animated Mesh (.mgn)")
     self.layout.operator(ExportSKT.bl_idname, text="SWG Skeleton (.skt)")
     self.layout.operator(ExportPOB.bl_idname, text="SWG Portalized Object (.pob)")
@@ -786,7 +902,6 @@ NOTE: If this option is disabled, you need to set the "SWG Client Extract Dir" p
     @classmethod
     def poll(cls, context):
         return context.active_object != None and (context.preferences.addons[__package__].preferences.swg_root != "")
-
 
     def invoke(self, context, event):
         s=context.preferences.addons[__package__].preferences.swg_root
@@ -809,15 +924,10 @@ class SWG_Add_Material_Operator(bpy.types.Operator):
     bl_idname = "object.swg_add_material"
     bl_label = "Add SWG Shader as Material"
     bl_description = '''If this option is disabled, you need to set the "SWG Client Extract Dir" property in the add-on preferences, and have 1 object selected'''
- 
 
     filename_ext = ".sht"
-    filter_glob : StringProperty(
-        default="*.sht",
-        options={'HIDDEN'},
-        )
+    filter_glob : StringProperty(default="*.sht", options={'HIDDEN'})
     filepath: StringProperty(default="*.sht",subtype='FILE_PATH')
-
     
     @classmethod
     def poll(cls, context):
@@ -844,22 +954,16 @@ class SWG_Create_Apt_For_Msh(bpy.types.Operator):
     bl_idname = "object.swg_create_apt_msh"
     bl_label = "Create a SWG .apt for this .msh"
     bl_description = '''If this option is disabled, you need to have 1 object selected'''
- 
 
     filename_ext = ".apt"
-    filter_glob : StringProperty(
-        default="*.apt",
-        options={'HIDDEN'},
-        )
+    filter_glob : StringProperty(default="*.apt", options={'HIDDEN'})
     filepath: StringProperty(default="test.apt",subtype='FILE_PATH')
 
     @classmethod
     def poll(cls, context):
         return context.active_object != None
 
-
     def execute(self, context): 
-
         apt_path =  self.properties.filepath 
         apt_reference = f"appearance/mesh/{context.active_object.name}.msh"
         apt = swg_types.AptFile(apt_path, apt_reference)
@@ -883,27 +987,18 @@ class SWG_Create_Sat_For_Mgn(bpy.types.Operator):
  
 
     filename_ext = ".sat"
-    filter_glob : StringProperty(
-        default="*.sat",
-        options={'HIDDEN'},
-        )
+    filter_glob : StringProperty(default="*.sat", options={'HIDDEN'})
     filepath: StringProperty(default="test.sat",subtype='FILE_PATH')
-
-    num_lods: IntProperty(
-            name="Number LODs",
-            min=1, max=10,
-            default=1,
-            )
+    num_lods: IntProperty(name="Number LODs", min=1, max=10, default=1)
+    
     @classmethod
     def poll(cls, context):
         return context.active_object != None
 
-
     def execute(self, context): 
+        sat_path =  self.properties.filepath
 
-        sat_path =  self.properties.filepath 
-
-        lmg_path = os.path.dirname(sat_path)+"/mesh/"+ context.active_object.name.lower()+".lmg"
+        lmg_path = os.path.dirname(sat_path) + "/mesh/" + sat_path.split('\\')[-1].split('.')[0] + ".lmg"
         lmg = swg_types.LmgFile(lmg_path, [context.active_object.name.lower()]* self.num_lods)
         lmg.write()
 
@@ -925,7 +1020,6 @@ class SWG_Create_Sat_For_Mgn(bpy.types.Operator):
         return {'RUNNING_MODAL'}
  
     def draw(self, context):
-        
         layout = self.layout
         layout.use_property_split = True
         layout.use_property_decorate = False  # No animation.
@@ -938,13 +1032,9 @@ class SWG_Load_Skeleton_For_MGN(bpy.types.Operator):
     bl_idname = "object.swg_load_skt_mgn"
     bl_label = "Load Bones from skeleton"
     bl_description = '''If this option is disabled, you need to have 1 object selected'''
- 
 
     filename_ext = ".skt"
-    filter_glob : StringProperty(
-        default="*.skt",
-        options={'HIDDEN'},
-        )
+    filter_glob : StringProperty(default="*.skt", options={'HIDDEN'})
     filepath: StringProperty(default="test.skt",subtype='FILE_PATH')
 
     @classmethod
@@ -984,13 +1074,9 @@ class SWG_Initialize_MGN_From_Existing(bpy.types.Operator):
     bl_idname = "object.swg_initialize_mgn"
     bl_label = "Initialize MGN data (occlusions, bones, blends) from an existing MGN"
     bl_description = '''If this option is disabled, you need to have 1 object selected'''
- 
 
     filename_ext = ".mgn"
-    filter_glob : StringProperty(
-        default="*.mgn",
-        options={'HIDDEN'},
-        )
+    filter_glob : StringProperty(default="*.mgn", options={'HIDDEN'})
     filepath: StringProperty(default="test.mgn",subtype='FILE_PATH')
 
     @classmethod
@@ -1032,9 +1118,7 @@ class SWG_Initialize_MGN_From_Existing(bpy.types.Operator):
 
         return {'FINISHED'}
 
-    def invoke(self, context, event):
-        # default_filename=context.active_object.name.lower()+".skt"
-        # self.filepath = default_filename        
+    def invoke(self, context, event):     
         if context.preferences.addons[__package__].preferences.swg_root != "":            
             self.filepath = context.preferences.addons[__package__].preferences.swg_root +"/appearance/mesh/"
         context.window_manager.fileselect_add(self)
@@ -1047,7 +1131,6 @@ class SWG_Swap_Bone_Names_To_Source(bpy.types.Operator):
     bl_idname = "object.swg_swap_bone_names_to_source"
     bl_label = "Swap Bone Names to Source Engine"
     bl_description = '''If this option is disabled, you need to have 1 object selected'''
- 
 
     @classmethod
     def poll(cls, context):
@@ -1108,7 +1191,6 @@ class SWG_Generate_Blends_From_Other(bpy.types.Operator):
     bl_idname = "object.swg_generate_blends_from_other"
     bl_label = "Generate Blend Shapes from Other"
     bl_description = '''If this option is disabled, you need to have 2 objects selected'''
- 
 
     @classmethod
     def poll(cls, context):
@@ -1153,7 +1235,7 @@ class SWG_Generate_Blends_From_Other(bpy.types.Operator):
                     closest_vert = sv
             closest_vert_map[dv.index] = closest_vert.index
 
-        #print(f"Closetst Vert Map:  {str(closest_vert_map)}")
+        #print(f"Closest Vert Map:  {str(closest_vert_map)}")
 
         basis = keys.key_blocks[0].data
         for key in keys.key_blocks:
@@ -1185,13 +1267,9 @@ class SWG_Load_Flr(bpy.types.Operator):
     bl_idname = "object.swg_load_flr"
     bl_label = "Load Floor File"
     bl_description = '''Loads a floor file'''
- 
 
     filename_ext = ".flr"
-    filter_glob : StringProperty(
-        default="*.flr",
-        options={'HIDDEN'},
-        )
+    filter_glob : StringProperty(default="*.flr", options={'HIDDEN'})
     filepath: StringProperty(default="test.flr",subtype='FILE_PATH')
 
     @classmethod
@@ -1220,16 +1298,12 @@ class SWG_Write_Flr(bpy.types.Operator):
     bl_description = '''Writes a floor file'''
 
     filename_ext = ".flr"
-    filter_glob : StringProperty(
-        default="*.flr",
-        options={'HIDDEN'},
-        )
+    filter_glob : StringProperty(default="*.flr", options={'HIDDEN'})
     filepath: StringProperty(default="test.flr",subtype='FILE_PATH')
 
     @classmethod
     def poll(cls, context):
         return context.active_object != None
-
 
     def execute(self, context):
         export_flr.export_flr(context, self.properties.filepath)
@@ -1431,6 +1505,7 @@ class SWG_Create_POB(bpy.types.Operator):
  
     def draw(self, context):
         pass
+
 class SWG_Create_POB_Room(bpy.types.Operator):
     bl_idname = "object.swg_create_pob_room"
     bl_label = "Add a room to the current POB hierachy"
@@ -1577,13 +1652,17 @@ classes = (
     ImportLOD,
     LOD_PT_import_option,
     ExportLOD,
+    LOD_PT_export_option,
     ImportPOB,
     POB_PT_import_option,
-    LOD_PT_export_option,
     ExportPOB,
     POB_PT_export_option,
     ImportSKT,
     ExportSKT,
+    ExportLMG,
+    LMG_PT_export_option,
+    ExportSAT,
+    SAT_PT_export_option,
     SWG_Load_Materials_Operator,
     SWG_Add_Material_Operator,
     SWG_Create_Apt_For_Msh,

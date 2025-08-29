@@ -30,15 +30,16 @@ def save(context, filepath,):
 
 def export_skt(context, filepath, collection):
     starttime = time.time()
-
+    
     skt_name = os.path.basename(filepath).replace('.skt','')
+    print(f"Creating SKT: {skt_name}")
     arm_objs = []
 
     for obj in collection.all_objects:
         # Skip nested objects. We only want ones directly under the collection.
         if obj.parent:
             continue
-        if obj.type == "ARMATURE":
+        if obj.type == 'ARMATURE':
             arm_objs.append(obj)
 
     iff = nsg_iff.IFF(initial_size=512000)

@@ -66,7 +66,7 @@ def save(context,
 
 def export_one(fullpath, extract_dir, collection, flip_uv_vertical, export_children):
     lodName = os.path.basename(fullpath).replace('.lod','')
-    print(f"LodName: {lodName}")
+    print(f"LOD Name: {lodName}")
 
     appearanceDirname = os.path.dirname(os.path.dirname(fullpath))
 

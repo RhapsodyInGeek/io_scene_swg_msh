@@ -156,9 +156,9 @@ class LmgFile(object):
         iff.insertChunk("INFO")
         iff.insert_int16(len(self.mgns))
         iff.exitChunk("INFO")
-        for mgn in self.mgns:          
+        for mgn in self.mgns:
             iff.insertChunk("NAME")        
-            iff.insertChunkString("appearance/mesh/"+mgn+".mgn")
+            iff.insertChunkString("appearance/mesh/" + mgn + ".mgn")
             iff.exitChunk("NAME")
 
         iff.write(self.path)
@@ -182,8 +182,7 @@ class SatFile(object):
         iff.exitChunk("INFO")
         
         iff.insertChunk("MSGN")
-        for mgn in self.mgns:            
-            iff.insertChunkString("appearance/mesh/"+mgn+".lmg")
+        iff.insertChunkString("appearance/mesh/" + self.path.split('\\')[-1].split('.')[0] + ".lmg")
         iff.exitChunk("MSGN")
         
         iff.insertChunk("SKTI")
