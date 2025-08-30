@@ -41,6 +41,9 @@ def export_skt(context, filepath, collection):
             continue
         if obj.type == 'ARMATURE':
             arm_objs.append(obj)
+    
+    if len(arm_objs) == 0:
+        return {'CANCELLED'}
 
     iff = nsg_iff.IFF(initial_size=512000)
     iff.insertForm("SLOD")

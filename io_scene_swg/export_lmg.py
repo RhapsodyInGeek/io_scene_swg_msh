@@ -17,7 +17,7 @@ def export_lmg(context, filepath, collection, export_mgns = True, do_tangents = 
 
     dirname = os.path.dirname(filepath)
     extract_dir = context.preferences.addons[__package__].preferences.swg_root
-
+    
     mgns = []
     for obj in collection.all_objects:
         if obj.type == 'MESH':
@@ -27,6 +27,8 @@ def export_lmg(context, filepath, collection, export_mgns = True, do_tangents = 
                 mgn_filepath = os.path.join(dirname, obj.name + ".mgn")
                 export_mgn.export_mgn(mgn_filepath, extract_dir, obj, do_tangents)
             obj.select_set(False)
+    if len(mgns) == 0:
+        return {'CANCELLED'}
 
     lmg = swg_types.LmgFile(filepath, mgns)
     lmg.write()
