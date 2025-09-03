@@ -132,6 +132,8 @@ Limitations:
 ## Tool Credits
 - [Nick "NoStyleGuy" Rafalski](https://github.com/nostyleguy)
   - Tool creator
+- [Alec "Elour" Harley](https://github.com/AlecH92)
+  - Hardpoint and collision assistance
 - [Tim "RhapsodyInGeek" Maccabe](https://github.com/RhapsodyInGeek)
   - .skt import / export
 - [Vera "sinewavey" Lux](https://github.com/sinewavey)

@@ -82,6 +82,7 @@ def export_one(fullpath, extract_dir, obj, flip_uv_vertical):
     mesh_triangulate(me)    
     me.calc_normals_split()
 
+    print(f"Vertex color layers: {len(me.vertex_colors)}")
     for layer in me.vertex_colors:
         print(f"Color layer: {layer.name}")
 
@@ -89,9 +90,13 @@ def export_one(fullpath, extract_dir, obj, flip_uv_vertical):
     me.loops.foreach_get("normal", t_ln)
     normals = list(map(list, zip(*[iter(t_ln)]*3)))   
     uv_maps=[]
+    vertex_colors=[]
     
     for layer in me.uv_layers:
         uv_maps.append(layer.data[:])
+
+    for color_layer in me.vertex_colors:
+        vertex_colors.append(color_layer.data[:].copy())
 
     t_ln = array.array(data_types.ARRAY_FLOAT64, [0.0,]) * len(me.loops) * 3
     uv_names = [uvlayer.name for uvlayer in me.uv_layers]
@@ -168,10 +173,18 @@ def export_one(fullpath, extract_dir, obj, flip_uv_vertical):
                     swg_v.normal = Vector(support.convert_vector3(normal))
 
                     if doColor0:
-                        swg_v.color0 = me.vertex_colors["color0"].data[l_index].color                        
+                        if len(vertex_colors) > 0:      
+                            swg_v.color0 = vertex_colors[0][l_index].color
+                        else:
+                            print(f"Mesh {obj.name}, shader {material.name} requires 1 vertex color layer, but mesh only has: {len(vertex_colors)}!")
+                            return {'ERROR'}
 
                     if doColor1:
-                        swg_v.color1 = me.vertex_colors["color1"].data[l_index].color
+                        if len(vertex_colors) > 1:     
+                            swg_v.color1 = vertex_colors[1][l_index].color  
+                        else:
+                            print(f"Mesh {obj.name}, shader {material.name} requires 2 vertex color layers, but mesh only has: {len(vertex_colors)}!")
+                            return {'ERROR'}               
 
                     for i in range(0, uvSets):
                         if i >= len(me.uv_layers):
