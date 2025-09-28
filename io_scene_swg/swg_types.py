@@ -2748,3 +2748,4 @@ class SWGMgn(object):
         if self.occlusion_zones and len(tris_with_no_facemap) > 0:
             print(f"WARNING: Tris without assigned occlusion zone: {str(len(tris_with_no_facemap))}")
         iff.write(self.filename)
+

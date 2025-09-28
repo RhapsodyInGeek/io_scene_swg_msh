@@ -34,6 +34,7 @@ def import_skt(context, filepath):
             break
 
         arm_name = skt_name + "_skt_l" + str(skt_index)
+        print(f"Importing {arm_name}...\n")
         arm = bpy.data.armatures.new(arm_name)
         arm_obj = bpy.data.objects.new(arm_name, arm)
         arm_obj.data.display_type = 'STICK'
@@ -46,7 +47,7 @@ def import_skt(context, filepath):
         bpy.ops.object.mode_set(mode='EDIT')
         
         bones = []
-        
+
         # Create bones with initial positions
         for i in range(skt.joint_count):
             bone = arm.edit_bones.new(skt.joint_names[i])
@@ -57,10 +58,14 @@ def import_skt(context, filepath):
             bone.head = Vector((-t[0], t[1], t[2]))
             bone.tail = bone.head + Vector((0.0, 0.0, 0.1))
             
+            bone["RPRE"] = skt.joint_pre_rotations[i]
+            bone["RPST"] = skt.joint_post_rotations[i]
+            bone["BPRO"] = skt.joint_bind_rotations[i]
+
         def process_bone_hierarchy(bone_index, parent_transform=Matrix.Identity(4)):
             if bone_index < 0 or bone_index >= skt.joint_count:
                 return
-                
+            
             bone = bones[bone_index]
 
             rpre = swg_quat_to_blender_quat(skt.joint_pre_rotations[bone_index])
@@ -72,18 +77,19 @@ def import_skt(context, filepath):
             
             # Create transformation matrix
             rotation_matrix = (rpost @ rbind @ rpre).to_matrix().to_4x4()
-            translation_matrix = Matrix.Translation(local_translation)
-            local_transform = translation_matrix @ rotation_matrix
+            local_transform = Matrix.Translation(local_translation) @ rotation_matrix
             
             # Combine with parent transform
             world_transform = parent_transform @ local_transform
-            
+
             bone.head = world_transform.translation
+            print(f"{bone.name}: \n\tRPRE {rpre}\n\tBPRO {rbind}\n\tRPST {rpost}\n\tBPTR {bone.head}")
         
             parent_id = skt.joint_parents[bone_index]
             if parent_id >= 0:
                 bone.parent = bones[parent_id]
             
+            # Transform children
             for i in range(skt.joint_count):
                 if skt.joint_parents[i] == bone_index:
                     process_bone_hierarchy(i, world_transform)
@@ -112,8 +118,11 @@ def import_skt(context, filepath):
                 bone.tail = bone.head + d * len(v) * 0.5
             else:
                 bone.tail = bone.head + Vector((0.0, 0.0, 0.05))
+            
+            bone.roll = 0.0
 
         bpy.ops.object.mode_set(mode='OBJECT')
         context.view_layer.objects.active = arm_obj
         arm_obj.rotation_euler = (math.pi * 0.5, 0.0, 0.0)
         bpy.ops.object.transform_apply(rotation=True)
+        print(f"{arm_name} import complete\n")

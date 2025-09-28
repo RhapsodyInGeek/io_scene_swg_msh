@@ -17,7 +17,7 @@
 import bpy, os, math, time, datetime
 from . import nsg_iff
 from bpy.props import *
-from mathutils import Vector
+from mathutils import Vector, Quaternion, Matrix
 
 def save(context, filepath,):
     collection = bpy.context.view_layer.active_layer_collection.collection
@@ -27,6 +27,10 @@ def save(context, filepath,):
         return export_skt(context, fullpath, collection)
     else:
         return {'CANCELLED'}
+
+def swg_quat_to_blender_quat(r):
+    q = Quaternion((-r[0], -r[1], r[2], r[3]))
+    return q
 
 def export_skt(context, filepath, collection):
     starttime = time.time()
@@ -55,6 +59,8 @@ def export_skt(context, filepath, collection):
     iff.exitChunk("INFO")
 
     for arm in arm_objs:
+        print(f"Exporting {arm.name}...")
+
         arm.select_set(True)
         context.view_layer.objects.active = arm
         arm.rotation_euler = (math.pi * -0.5, 0.0, 0.0)
@@ -64,10 +70,13 @@ def export_skt(context, filepath, collection):
         iff.insertForm("0002")
 
         bones = []
+        bone_translations_in = []
+        bone_translations_out = []
         for b in arm.data.bones:
             # Allow the use of control bones like IK
             if b.use_deform:
                 bones.append(b)
+                bone_translations_out.append(b.head)
         bone_ct = len(bones)
         
         # Joint Count
@@ -82,46 +91,86 @@ def export_skt(context, filepath, collection):
         iff.exitChunk("NAME")
         
         # Joint Parents
+        bone_parent_indices = []
         iff.insertChunk("PRNT")
         for b in bones:
             if b.parent:
                 for i in range(bone_ct):
                     if b.parent == bones[i]:
                         iff.insert_int32(i)
+                        bone_parent_indices.append(i)
                         break
             else:
+                bone_parent_indices.append(-1)
                 iff.insert_int32(-1)
         iff.exitChunk("PRNT")
         
-        identity_quaternion = [1.0, 0.0, 0.0, 0.0] # quat is written as xyzw
+        identity_quaternion = [1.0, 0.0, 0.0, 0.0] # wxyz is read by SIE as zwxy
         
         # Pre Multiply Rotations
         iff.insertChunk("RPRE")
-        for i in range(bone_ct):
-            iff.insertFloatVector4(identity_quaternion)
+        for b in bones:
+            if "RPRE" in b:
+                iff.insertFloatVector4(b["RPRE"])
+            else:
+                iff.insertFloatVector4(identity_quaternion)
         iff.exitChunk("RPRE")
         
         # Post Multiply Rotations
         iff.insertChunk("RPST")
-        for i in range(bone_ct):
-            iff.insertFloatVector4(identity_quaternion)
+        for b in bones:
+            if "RPST" in b:
+                iff.insertFloatVector4(b["RPST"])
+            else:
+                iff.insertFloatVector4(identity_quaternion)
         iff.exitChunk("RPST")
         
         # Bind Pose Translations
+        def process_bone_hierarchy(bone_index, parent_transform=Matrix.Identity(4)):
+            if bone_index < 0 or bone_index >= bone_ct:
+                return
+                
+            bone = bones[bone_index]
+
+            rpre = swg_quat_to_blender_quat(bone["RPRE"]) if "RPRE" in b else Quaternion((-1.0, 0.0, 0.0, 0.0))
+            rbind = swg_quat_to_blender_quat(bone["BPRO"]) if "BPRO" in b else Quaternion((-1.0, 0.0, 0.0, 0.0))
+            rpost = swg_quat_to_blender_quat(bone["RPST"]) if "RPST" in b else Quaternion((-1.0, 0.0, 0.0, 0.0))
+            
+            # Local transform
+            t = bone.head_local
+            if bone.parent:
+                p = bone.parent.head_local
+                t = t - p
+            rotation_matrix = (rpre @ rbind @ rpost).to_matrix().to_4x4().inverted()
+            local_transform = Matrix.Translation(t) @ rotation_matrix
+
+            # Recombine with parent transform
+            world_transform = parent_transform @ local_transform
+
+            bone_translations_out[bone_index] = world_transform.translation - parent_transform.translation
+            if arm == arm_objs[0]:
+                print(f"{bone.name}: \n\tRPRE {rpre}\n\tBPRO {rbind}\n\tRPST {rpost}\n\tBPTR {bone_translations_out[bone_index]}")
+
+            # Transform children
+            for i in range(bone_ct):
+                if bone_parent_indices[i] == bone_index:
+                    process_bone_hierarchy(i, world_transform)
+        
         iff.insertChunk("BPTR")
-        for b in bones:
-            t = b.head_local
-            if b.parent:
-                pt = b.parent.head_local
-                t = t - pt
-            t = Vector((-t[0], t[1], t[2]))
-            iff.insertFloatVector3(t)
+        for i in range(bone_ct):
+            if bone_parent_indices[i] < 0:
+                process_bone_hierarchy(i)
+        for t in bone_translations_out:
+            iff.insertFloatVector3([-t.x, t.y, t.z])
         iff.exitChunk("BPTR")
 
         # Bind Pose Rotations
         iff.insertChunk("BPRO")
-        for i in range(bone_ct):
-            iff.insertFloatVector4(identity_quaternion)
+        for b in bones:
+            if "BPRO" in b:
+                iff.insertFloatVector4(b["BPRO"])
+            else:
+                iff.insertFloatVector4(identity_quaternion)
         iff.exitChunk("BPRO")
         
         # Joint Rotation Order
@@ -136,6 +185,7 @@ def export_skt(context, filepath, collection):
         arm.rotation_euler = (math.pi * 0.5, 0.0, 0.0)
         bpy.ops.object.transform_apply(rotation=True)
         arm.select_set(False)
+        print(f"{arm.name} export complete\n")
     
     iff.exitForm("0000")
     iff.exitForm("SLOD")

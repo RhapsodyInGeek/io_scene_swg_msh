@@ -232,6 +232,7 @@ class IFF():
 
     def read_vector3(self):
         return [self.read_float(), self.read_float(), self.read_float()]
+    
     def read_vector4(self):
         return [self.read_float(), self.read_float(), self.read_float(), self.read_float()]
     
