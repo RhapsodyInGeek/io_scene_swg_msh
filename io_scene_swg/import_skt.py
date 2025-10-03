@@ -12,6 +12,7 @@
 # bone orientations and may require manual post work to clean up.
 #
 # The importer will create a collection and import each SKT's LODs in as separate armatures.
+# The Pre-Multiply, Post-Multiply, and Bind-Pose Rotations are all saved as custom properties on each bone.
 
 import bpy
 from . import swg_types
