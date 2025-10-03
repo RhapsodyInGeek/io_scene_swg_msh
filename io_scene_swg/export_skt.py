@@ -10,9 +10,6 @@
 # No child armatures will be exported.
 # Each armature in the collection is exported as an SKTM (LOD skeleton) packaged in the same SKT file.
 # SKTMs are added in view layer descending order, allowing for multiple SKT LODs.
-# Re-exported SOE skeletons seem to work despite having the rotations set to (0.0, 1.0, 0.0, 0.0).
-# The rotations are only important for moving the skeleton's joints to the proper translations: 
-#       if the joints are already in the correct positions, there is no need for the rotation values.
 
 import bpy, os, math, time, datetime
 from . import nsg_iff
