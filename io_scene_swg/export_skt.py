@@ -67,13 +67,18 @@ def export_skt(context, filepath, collection):
         iff.insertForm("0002")
 
         bones = []
-        bone_translations_in = []
+        bone_translations_org = []
         bone_translations_out = []
         for b in arm.data.bones:
             # Allow the use of control bones like IK
             if b.use_deform:
                 bones.append(b)
-                bone_translations_out.append(b.head)
+                t = b.head_local
+                if b.parent:
+                    t = t - b.parent.head_local
+                print(f"{b.name} position: {t}")
+                bone_translations_org.append(t)
+                bone_translations_out.append(t)
         bone_ct = len(bones)
         
         # Joint Count
@@ -134,12 +139,9 @@ def export_skt(context, filepath, collection):
             rpost = swg_quat_to_blender_quat(bone["RPST"]) if "RPST" in b else Quaternion((-1.0, 0.0, 0.0, 0.0))
             
             # Local transform
-            t = bone.head_local
-            if bone.parent:
-                p = bone.parent.head_local
-                t = t - p
-            rotation_matrix = (rpre @ rbind @ rpost).to_matrix().to_4x4().inverted()
-            local_transform = Matrix.Translation(t) @ rotation_matrix
+            local_translation = bone_translations_org[bone_index]
+            rotation_matrix = (rpost @ rbind @ rpre).to_matrix().transposed().to_4x4()
+            local_transform = Matrix.Translation(local_translation) @ rotation_matrix
 
             # Recombine with parent transform
             world_transform = parent_transform @ local_transform
@@ -179,6 +181,7 @@ def export_skt(context, filepath, collection):
         iff.exitForm("0002")
         iff.exitForm("SKTM")
 
+        context.view_layer.objects.active = arm
         arm.rotation_euler = (math.pi * 0.5, 0.0, 0.0)
         bpy.ops.object.transform_apply(rotation=True)
         arm.select_set(False)

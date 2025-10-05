@@ -39,6 +39,7 @@ def import_skt(context, filepath):
         arm = bpy.data.armatures.new(arm_name)
         arm_obj = bpy.data.objects.new(arm_name, arm)
         arm_obj.data.display_type = 'STICK'
+        arm_obj.data.relation_line_position = 'HEAD'
         #arm_obj.data.show_names = True
         arm_obj.show_in_front = True
         
@@ -84,6 +85,7 @@ def import_skt(context, filepath):
             world_transform = parent_transform @ local_transform
 
             bone.head = world_transform.translation
+            #bone.tail = bone.head + (bone.head - parent_transform.translation - local_translation).normalized() * 0.05
             print(f"{bone.name}: \n\tRPRE {rpre}\n\tBPRO {rbind}\n\tRPST {rpost}\n\tBPTR {bone.head}")
         
             parent_id = skt.joint_parents[bone_index]
