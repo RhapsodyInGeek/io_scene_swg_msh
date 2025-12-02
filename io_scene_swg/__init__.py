@@ -22,13 +22,13 @@
 
 bl_info = {
     "name": "NSG SWG Tools",
-    "author": "Nick Rafalski",
-    "version": (3, 0, 9),
+    "author": "Nick 'NoStyleGuy' Rafalski, Alec 'Elour' Harley, Tim 'RhapsodyInGeek' Maccabe, and Vera 'sinewavey' Lux",
+    "version": (3, 1, 1),
     "blender": (2, 81, 6),
     "location": "File > Import-Export",
-    "description": "Import-Export SWG .msh, .mgn, .lod and .pob",
+    "description": "Import-Export SWG .msh, .mgn, .skt, .lod and .pob",
     "warning": "NOT Compatible with Blender 4.x yet! Features that use Face Maps (MGN occlusion, floor fallthroughs) will fail!",
-    "doc_url": "None",
+    "doc_url": "https://github.com/nostyleguy/io_scene_swg_msh",
     "support": 'COMMUNITY',
     "category": "Import-Export",
 }

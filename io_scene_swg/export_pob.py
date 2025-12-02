@@ -254,6 +254,8 @@ def export_one(fullpath, extract_dir, collection, specific_cells_to_export, flip
                     center_by_cell[cell_id] = export_msh.avg_vert_position_in_blender(child)
                     if export_children and (specific_cells_to_export == None or (cellCol in specific_cells_to_export)):
                         result = export_as_msh(child, extract_dir, fullMshPath)
+                        if 'FINISHED' not in result:
+                            return print_and_create_return_object('ERROR', "Error exporting mesh, see System Console (Window -> Toggle System Console) for complete error message!")
                 elif child.name.startswith("Floor_"):
                     flrObj = child
 
