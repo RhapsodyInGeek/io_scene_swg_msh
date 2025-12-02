@@ -69,8 +69,8 @@ def import_msh(context,
 
     print(f'Importing msh: {filepath} Flip UV: {flip_uv_vertical}')
 
-    s=context.preferences.addons[__package__].preferences.swg_root     
-    msh = swg_types.SWGMesh(filepath, s)
+    swg_root = context.preferences.addons[__package__].preferences.swg_root
+    msh = swg_types.SWGMesh(filepath, swg_root)
     if not msh.load():
         return {'CANCELLED'}
     
@@ -120,8 +120,9 @@ def import_msh(context,
         material["Color0"] = sps.hasColor0()
         material["Color1"] = sps.hasColor1()
 
-        if sps.real_shader: 
-           support.configure_material_from_swg_shader(material, sps.real_shader, s) 
+        if sps.real_shader:
+           tex_to_png = context.preferences.addons[__package__].preferences.convert_tex_to_png
+           support.configure_material_from_swg_shader(material, sps.real_shader, swg_root, tex_to_png) 
 
         mesh.materials.append(material)        
 

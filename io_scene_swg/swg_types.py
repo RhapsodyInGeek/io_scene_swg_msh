@@ -1416,14 +1416,19 @@ class Triangle(object):
         return self.__str__()
 
 class SWGShader(object):
-    __slots__ = ('path', 'main', 'spec', 'normal', 'envm', 'effect', 'customizable', 'transparent')
+    __slots__ = ('path', 'main', 'specular', 'normal', 'compressed_normal', 'envm', 'emission', 'detail', 'hueb', 'effect', 'customizable', 'palette_count', 'transparent')
     def __init__(self, path):
         self.path=path
         self.main=None
-        self.spec=None
+        self.specular=None
         self.normal=None
+        self.compressed_normal=None
         self.envm=None
+        self.emission=None
+        self.detail=None
+        self.hueb=None
         self.customizable=False
+        self.palette_count=0
         self.transparent=False
         self.effect = None
         self.load()
@@ -1443,7 +1448,6 @@ class SWGShader(object):
     def infer_features_from_effect(self):
         if self.effect:
             self.transparent = any([x in self.effect for x in ["alpha", "invis", "water"]])
-            #print(f"{self.path} effect: {self.effect} transparent: {self.transparent}")
             
     def load(self):
         iff = nsg_iff.IFF(filename=self.path)
@@ -1467,10 +1471,24 @@ class SWGShader(object):
     def load_cshd(self, iff):
         iff.enterForm("CSHD")
         version = iff.getCurrentName()
-        if version in ["0001"]:            
+        if version in ["0001"]:
             iff.enterForm(version)
             self.load_ssht(iff)
             iff.exitForm(version)
+            while not iff.atEndOfForm():
+                # Hueable shaders
+                if iff.getCurrentName() == "TFAC":
+                    iff.enterForm("TFAC")
+                    while not iff.atEndOfForm():
+                        if iff.getCurrentName() == "PAL":
+                            iff.enterChunk("PAL")
+                            self.palette_count += 1
+                            iff.exitChunk("PAL")
+                    iff.exitForm("TFAC")
+                # Texture patterns
+                elif iff.getCurrentName() == "TXTR":
+                    iff.enterForm("TXTR")
+                    iff.exitForm("TXTR")
         else:            
             print(f"{iff.filename}: unsupported CSHD Version: {version}!")
         iff.exitForm("CSHD")
@@ -1478,8 +1496,7 @@ class SWGShader(object):
     def load_ssht(self, iff):
         iff.enterForm("SSHT")
         version = iff.getCurrentName()
-        if version in ["0000", "0001"]: 
-
+        if version in ["0000", "0001"]:
             iff.enterForm(version)
             if iff.getCurrentName() == "NAME":
                 iff.enterChunk("NAME")
@@ -1491,9 +1508,9 @@ class SWGShader(object):
 
             if iff.getCurrentName() == "TXMS":
                 iff.enterForm("TXMS")
-                count = 0
+                #count = 0
                 while not iff.atEndOfForm():
-                    count += 1
+                    #count += 1
                     iff.enterForm("TXM ")
                     iff.enterAnyForm() # version
                     iff.enterChunk("DATA")
@@ -1509,18 +1526,25 @@ class SWGShader(object):
                     if tag == "MAIN":
                         self.main = texture
                     elif tag == "SPEC":
-                        self.spec = texture
-                    elif tag in ["CNRM", "NRML"]:
+                        self.specular = texture
+                    elif tag == "CNRM":
+                        self.compressed_normal = texture
+                    elif tag == "NRML":
                         self.normal = texture
                     elif tag == "ENVM":
                         self.envm = texture
-                #print(f"TXMs: {count}")
+                    elif tag == "EMIS":
+                        self.emission = texture
+                    elif tag == "DETA":
+                        self.detail = texture
+                    elif tag == "HUEB":
+                        self.hueb = texture
+                
                 iff.exitForm("TXMS")
 
             if iff.getCurrentName() == "TCSS":
                 iff.enterForm("TCSS")
                 iff.exitForm("TCSS")
-            
 
             if iff.getCurrentName() == "TFNS":
                 iff.enterForm("TFNS")
@@ -1529,7 +1553,6 @@ class SWGShader(object):
             if iff.getCurrentName() == "ARVS":
                 iff.enterForm("ARVS")
                 iff.exitForm("ARVS")
-            
 
             if iff.getCurrentName() == "SRVS":
                 iff.enterForm("SRVS")

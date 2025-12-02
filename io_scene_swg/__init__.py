@@ -128,9 +128,16 @@ class SWGPreferences(AddonPreferences):
         subtype='FILE_PATH',
     )
 
+    convert_tex_to_png: BoolProperty(
+        name="Convert Loaded Textures to PNG",
+        description="When loading textures, copy and convert them from DDS to PNG format.",
+        default=False,
+    )
+
     def draw(self, context):
         layout = self.layout
         layout.prop(self, "swg_root")
+        layout.prop(self, "convert_tex_to_png")
 
 class OBJECT_OT_addon_prefs_swg(Operator):
     """Display SWG Preferences"""
@@ -419,7 +426,7 @@ class ImportLOD(bpy.types.Operator, ImportHelper):
 
     flip_uv_vertical: BoolProperty(
             name="Flip UV Vertically",
-            description="SWG seems to interprte the DDS vertical axis opposite as Blender does. Need to flip UVs on import AND export to be able to use Blender UV mapping without being destructive.",
+            description="SWG seems to interpret the DDS vertical axis opposite as Blender does. Need to flip UVs on import AND export to be able to use Blender UV mapping without being destructive.",
             default=True,
             )
     remove_duplicate_verts: BoolProperty(
@@ -770,6 +777,31 @@ class ImportSKT(bpy.types.Operator, ImportHelper):
 
     filename_ext = ".skt"
     filter_glob: StringProperty(default = "*.skt", options = {'HIDDEN'},)
+
+    lod_0_only: BoolProperty(
+            name="LOD 0 Only",
+            description="Skeleton files typically contain multiple levels of detail to improve performance. Enabling this option to only load the highest detail skeleton.",
+            default=False,
+            )
+    
+    connect_bones: BoolProperty(
+            name="Connect Bones",
+            description="SWG skeletons use joints rather than bones. The difference is they have only a position and direction but no length. Sometimes it may provide a more accurate auto weight paint to a mesh if the bones are connected. Enabling this option connects bones' tails to their children.",
+            default=False,
+            )
+    
+    show_bone_names: BoolProperty(
+            name="Show Bone Names",
+            description="Toggles bone name visibility.",
+            default=False,
+            )
+    
+    show_bone_axes: BoolProperty(
+            name="Show Bone Axes",
+            description="Toggles bone axis visibility. Useful for joint rotation debugging.",
+            default=False,
+            )
+
     files: CollectionProperty(type = bpy.types.OperatorFileListElement, options = {'HIDDEN', 'SKIP_SAVE'},)
 
     def execute(self, context):
@@ -787,6 +819,32 @@ class ImportSKT(bpy.types.Operator, ImportHelper):
 
     def draw(self, context):
         pass
+
+class SKT_PT_import_option(bpy.types.Panel):
+    bl_space_type = 'FILE_BROWSER'
+    bl_region_type = 'TOOL_PROPS'
+    bl_label = "SKT Options"
+    bl_parent_id = "FILE_PT_operator"
+
+    @classmethod
+    def poll(cls, context):
+        sfile = context.space_data
+        operator = sfile.active_operator
+
+        return operator.bl_idname == "IMPORT_SCENE_OT_skt"
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False  # No animation.
+
+        sfile = context.space_data
+        operator = sfile.active_operator
+        
+        layout.prop(operator, 'lod_0_only')
+        layout.prop(operator, 'connect_bones')
+        layout.prop(operator, 'show_bone_names')
+        layout.prop(operator, 'show_bone_axes')
 
 class ExportSKT(bpy.types.Operator, ExportHelper):
     """Save a SWG .skt File"""
@@ -904,17 +962,18 @@ NOTE: If this option is disabled, you need to set the "SWG Client Extract Dir" p
         return context.active_object != None and (context.preferences.addons[__package__].preferences.swg_root != "")
 
     def invoke(self, context, event):
-        s=context.preferences.addons[__package__].preferences.swg_root
+        swg_root = context.preferences.addons[__package__].preferences.swg_root
+        tex_to_png = context.preferences.addons[__package__].preferences.convert_tex_to_png
         print(f"invoke with: {context.active_object.name}")     
         for slot in context.active_object.material_slots:
             mat = slot.material    
             print(f"Looking for material: {mat.name}")
             path=f'shader/{mat.name}.sht'        
-            real_shader_path = support.find_file(path,s)
+            real_shader_path = support.find_file(path, swg_root)
             if real_shader_path:
                 print(f'..found it...')
                 shader = swg_types.SWGShader(real_shader_path)
-                support.configure_material_from_swg_shader(mat,shader, s)
+                support.configure_material_from_swg_shader(mat,shader, swg_root, tex_to_png)
             else:
                 print(f"WARNING: Couldn't locate real shader path for: {path}")
 
@@ -934,12 +993,13 @@ class SWG_Add_Material_Operator(bpy.types.Operator):
         return context.active_object != None and (context.preferences.addons[__package__].preferences.swg_root != "")
 
     def execute(self, context):
-        s=context.preferences.addons[__package__].preferences.swg_root
+        swg_root = context.preferences.addons[__package__].preferences.swg_root
+        tex_to_png = context.preferences.addons[__package__].preferences.convert_tex_to_png
         context.active_object.data.materials.append(None)
         shader = swg_types.SWGShader(support.clean_path(self.properties.filepath))
         material = bpy.data.materials.new(shader.stripped_shader_name()) 
         context.active_object.material_slots[len(context.active_object.material_slots)-1].material = material
-        support.configure_material_from_swg_shader(material, shader, s)
+        support.configure_material_from_swg_shader(material, shader, swg_root, tex_to_png)
         return {'FINISHED'}
  
     def invoke(self, context, event):
@@ -1658,6 +1718,7 @@ classes = (
     ExportPOB,
     POB_PT_export_option,
     ImportSKT,
+    SKT_PT_import_option,
     ExportSKT,
     ExportLMG,
     LMG_PT_export_option,

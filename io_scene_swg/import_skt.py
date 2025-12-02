@@ -24,7 +24,7 @@ def swg_quat_to_blender_quat(r):
     q = Quaternion((-r[0], -r[1], r[2], r[3]))
     return q
 
-def import_skt(context, filepath):
+def import_skt(context, filepath, *, lod_0_only = False, connect_bones = False, show_bone_names = False, show_bone_axes = False):
     skt_name = filepath.split('\\')[-1].split('.')[0]
     collection = bpy.data.collections.new(skt_name + ".skt")
     context.scene.collection.children.link(collection)
@@ -38,9 +38,13 @@ def import_skt(context, filepath):
         print(f"Importing {arm_name}...\n")
         arm = bpy.data.armatures.new(arm_name)
         arm_obj = bpy.data.objects.new(arm_name, arm)
-        arm_obj.data.display_type = 'STICK'
+        if not connect_bones:
+            arm_obj.data.display_type = 'OCTAHEDRAL'
+        else:
+            arm_obj.data.display_type = 'STICK'
         arm_obj.data.relation_line_position = 'HEAD'
-        #arm_obj.data.show_names = True
+        arm_obj.data.show_axes = show_bone_axes
+        arm_obj.data.show_names = show_bone_names
         arm_obj.show_in_front = True
         
         collection.objects.link(arm_obj)
@@ -58,7 +62,7 @@ def import_skt(context, filepath):
             bone.use_inherit_rotation = True
             t = skt.joint_translations[i]
             bone.head = Vector((-t[0], t[1], t[2]))
-            bone.tail = bone.head + Vector((0.0, 0.0, 0.1))
+            bone.tail = bone.head + Vector((0.0, 0.0, -0.1))
             
             bone["RPRE"] = skt.joint_pre_rotations[i]
             bone["RPST"] = skt.joint_post_rotations[i]
@@ -85,7 +89,7 @@ def import_skt(context, filepath):
             world_transform = parent_transform @ local_transform
 
             bone.head = world_transform.translation
-            #bone.tail = bone.head + (bone.head - parent_transform.translation - local_translation).normalized() * 0.05
+            bone.tail = bone.head + (Matrix.Translation(Vector((0.0, 0.0, 0.025))) @ rotation_matrix).translation
             print(f"{bone.name}: \n\tRPRE {rpre}\n\tBPRO {rbind}\n\tRPST {rpost}\n\tBPTR {bone.head}")
         
             parent_id = skt.joint_parents[bone_index]
@@ -104,28 +108,31 @@ def import_skt(context, filepath):
         # Set bone tails
         for i in range(skt.joint_count):
             bone = bones[i]
-            children = bone.children
-            ct = len(children)
+
+            if connect_bones:
+                children = bone.children
+                ct = len(children)
+                if ct > 0:
+                    tail_pos = Vector((0.0, 0.0, 0.0))
+                    for child in children:
+                        tail_pos += child.head
+                    tail_pos /= ct
+                    bone.tail = tail_pos
+                    if ct == 1:
+                        children[0].use_connect = True
+                elif bone.parent:
+                    v = bone.head - bone.parent.head
+                    d = v / len(v)
+                    bone.tail = bone.head + d * len(v) * 0.5
+                else:
+                    bone.tail = bone.head + Vector((0.0, 0.0, 0.05))
             
-            if ct > 0:
-                tail_pos = Vector((0.0, 0.0, 0.0))
-                for child in children:
-                    tail_pos += child.head
-                tail_pos /= ct
-                bone.tail = tail_pos
-                if ct == 1:
-                    children[0].use_connect = True
-            elif bone.parent:
-                v = bone.head - bone.parent.head
-                d = v / len(v)
-                bone.tail = bone.head + d * len(v) * 0.5
-            else:
-                bone.tail = bone.head + Vector((0.0, 0.0, 0.05))
-            
-            bone.roll = 0.0
 
         bpy.ops.object.mode_set(mode='OBJECT')
         context.view_layer.objects.active = arm_obj
         arm_obj.rotation_euler = (math.pi * 0.5, 0.0, 0.0)
         bpy.ops.object.transform_apply(rotation=True)
         print(f"{arm_name} import complete\n")
+
+        if lod_0_only:
+            return
