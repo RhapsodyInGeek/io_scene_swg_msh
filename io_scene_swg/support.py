@@ -277,7 +277,7 @@ def configure_material_from_swg_shader(material, shader, root_dir, tex_to_png):
             # Create and connect Vector Normal Map Node to BSDF Normal
             map_node = nodes.new('ShaderNodeNormalMap')
             map_node.location = (-175, -560)
-            node_tree.links.new(bsdf.inputs[22], map_node.outputs[0])
+            node_tree.links.new(bsdf.inputs['Normal'], map_node.outputs[0])
 
             # Create and connect Combine Color Node to Vector Normal Map Node
             combine_color_node = nodes.new('ShaderNodeCombineColor')
@@ -386,7 +386,7 @@ def configure_material_from_swg_shader(material, shader, root_dir, tex_to_png):
         emis_image = load_shared_image(shader.emission, root_dir, tex_to_png)
         if emis_image:
             emismap_node = nodes.new('ShaderNodeTexImage')
-            emismap_node.location(-225, 260)
+            emismap_node.location = (-225, 260)
             emismap_node.image = emis_image
 
             emis_node = nodes.new('ShaderNodeVectorMath')
