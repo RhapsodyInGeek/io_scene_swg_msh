@@ -22,13 +22,13 @@
 
 bl_info = {
     "name": "NSG SWG Tools",
-    "author": "Nick 'NoStyleGuy' Rafalski, Alec 'Elour' Harley, Tim 'RhapsodyInGeek' Maccabe, and Vera 'sinewavey' Lux",
-    "version": (3, 1, 1),
+    "author": "Nick Rafalski",
+    "version": (3, 0, 9),
     "blender": (2, 81, 6),
     "location": "File > Import-Export",
-    "description": "Import-Export SWG .msh, .mgn, .skt, .lod and .pob",
+    "description": "Import-Export SWG .msh, .mgn, .lod and .pob",
     "warning": "NOT Compatible with Blender 4.x yet! Features that use Face Maps (MGN occlusion, floor fallthroughs) will fail!",
-    "doc_url": "https://github.com/nostyleguy/io_scene_swg_msh",
+    "doc_url": "None",
     "support": 'COMMUNITY',
     "category": "Import-Export",
 }
@@ -972,7 +972,7 @@ NOTE: If this option is disabled, you need to set the "SWG Client Extract Dir" p
             real_shader_path = support.find_file(path, swg_root)
             if real_shader_path:
                 print(f'..found it...')
-                shader = swg_types.SWGShader(real_shader_path)
+                shader = swg_types.SWGShader(real_shader_path, swg_root)
                 support.configure_material_from_swg_shader(mat,shader, swg_root, tex_to_png)
             else:
                 print(f"WARNING: Couldn't locate real shader path for: {path}")
@@ -996,7 +996,7 @@ class SWG_Add_Material_Operator(bpy.types.Operator):
         swg_root = context.preferences.addons[__package__].preferences.swg_root
         tex_to_png = context.preferences.addons[__package__].preferences.convert_tex_to_png
         context.active_object.data.materials.append(None)
-        shader = swg_types.SWGShader(support.clean_path(self.properties.filepath))
+        shader = swg_types.SWGShader(support.clean_path(self.properties.filepath), swg_root)
         material = bpy.data.materials.new(shader.stripped_shader_name()) 
         context.active_object.material_slots[len(context.active_object.material_slots)-1].material = material
         support.configure_material_from_swg_shader(material, shader, swg_root, tex_to_png)
@@ -1521,10 +1521,12 @@ class SWG_Create_POB(bpy.types.Operator):
     def execute(self, context):
         collection = bpy.data.collections.new("NewPOBName")
         bpy.context.scene.collection.children.link(collection)
+        collection['ship'] = False
 
         # r0
         r0 = bpy.data.collections.new("r0")
         collection.children.link(r0)
+        r0['can_see_parent'] = False
 
         app = bpy.data.collections.new("Appearance_r0")
         r0.children.link(app)
@@ -1580,6 +1582,7 @@ class SWG_Create_POB_Room(bpy.types.Operator):
         collection = bpy.context.view_layer.active_layer_collection.collection        
         name=f'room{len(collection.children)}'
         r1 = bpy.data.collections.new(name)
+        r1['can_see_parent'] = True
         collection.children.link(r1)
         child = bpy.data.collections.new(f"Collision_{name}")
         r1.children.link(child)

@@ -124,7 +124,7 @@ def import_msh(context,
            tex_to_png = context.preferences.addons[__package__].preferences.convert_tex_to_png
            support.configure_material_from_swg_shader(material, sps.real_shader, swg_root, tex_to_png) 
 
-        mesh.materials.append(material)        
+        mesh.materials.append(material)
 
         uvs = []
         for ind, vert in enumerate(sps.verts):
