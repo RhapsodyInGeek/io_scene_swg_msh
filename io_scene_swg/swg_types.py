@@ -1996,7 +1996,7 @@ class SWGMesh(object):
 		iff.exitForm("0003")
 		iff.exitForm("APPR")
 
-		# -- BEGIN APPR
+		# -- BEGIN SPS
 		iff.insertForm("SPS ")
 		iff.insertForm("0001")
 
@@ -2034,7 +2034,14 @@ class SWGMesh(object):
 			iff.insertChunk("DATA")
 			for v in sps.verts:
 				iff.insertFloatVector3((v.pos.x, v.pos.y, v.pos.z))
+
+				if vertex_buffer_format.isTransformed(sps.flags):
+					iff.insertFloat(1)
+				
 				iff.insertFloatVector3((v.normal.x, v.normal.y, v.normal.z))
+				
+				if vertex_buffer_format.hasPointSize(sps.flags):
+					iff.insertFloat(1)
 
 				if vertex_buffer_format.hasColor0(sps.flags):
 					iff.insert_color(v.color0)

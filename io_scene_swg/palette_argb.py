@@ -1,9 +1,9 @@
-import struct, io, builtins, os, sys
+import builtins
 
 class PaletteArgb():
 	def __init__(self, filename = ""):
 		self.size = 0
-		self.colors = {}
+		self.colors = []
 		self.filename = filename
 		if filename != "":
 			file = builtins.open(filename, 'rb')

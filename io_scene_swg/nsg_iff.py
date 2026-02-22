@@ -430,18 +430,14 @@ class IFF():
 		self.insertChunkData(int.to_bytes(i, 4, byteorder="little", signed=False))
 	
 	def insert_color(self, color):
-		r=int(numpy.clip(color[0]*255, 0, 255))
-		g=int(numpy.clip(color[1]*255, 0, 255))
-		b=int(numpy.clip(color[2]*255, 0, 255))
-		a=int(numpy.clip(color[3]*255, 0, 255))
-		
-		# NSG Seems like this should be ARGB per SOE code, but that makes 
-		# the Anchorhead Cantina look gross. Used trial and error to determine
-		# order: BGRA
-		self.insert_byte(b)
-		self.insert_byte(g)
-		self.insert_byte(r)
-		self.insert_byte(a)
+		c = []
+		for i in range(4):
+			c.append(int(numpy.clip(color[i] * 255, 0, 255)))
+		self.insert_byte(c[2])
+		self.insert_byte(c[1])
+		self.insert_byte(c[0])
+		self.insert_byte(c[3])
+		#print(f"ARGB: {c[3]}, {c[0]}, {c[1]}, {c[2]}")
 
 	def insertIff(self, iff):
 		#make sure the data array can handle this addition
