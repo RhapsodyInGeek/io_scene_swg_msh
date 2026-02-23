@@ -1626,6 +1626,54 @@ class SWG_Portals_Unpassable(bpy.types.Operator):
 	def draw(self, context):
 		pass
 
+class SWG_Create_POB_Light(bpy.types.Operator):
+	bl_idname = "object.swg_create_pob_light"
+	bl_label = "Add a POB Light to the active collection"
+	bl_description = "Add a light with attenuation, specular, and type flag custom properties to the current collection"
+ 
+	@classmethod
+	def poll(self, context):
+		collection = bpy.context.view_layer.active_layer_collection.collection
+		return collection != None
+
+	def execute(self, context):		
+		collection = bpy.context.view_layer.active_layer_collection.collection
+
+		# Create light datablock
+		light_data = bpy.data.lights.new(name="light-data", type='POINT')
+		light_data.energy = 50
+		light_data.color = [0.5,0.5,0.5]
+
+		# Add light properties
+		light_data['parallel'] = False
+		light_data['multicell'] = False
+		
+		light_data['specular_color'] = [0.0,0.0,0.0]
+		light_data.id_properties_ui('specular_color').update(
+				default=(0, 0, 0), 
+				min=0.0, 
+				max=1.0, 
+				soft_min=0.0, 
+				soft_max=1.0, 
+				subtype="COLOR"
+			)
+		
+		light_data['constant_attenuation'] = 1.0
+		light_data['linear_attenuation'] = 0.0
+		light_data['quadratic_attenuation'] = 0.0
+
+		# Create new object, pass the light data 
+		light_name = 'Light.' + collection.name
+		light_object = bpy.data.objects.new(name=light_name, object_data=light_data)
+
+		# Link object to collection in context
+		collection.objects.link(light_object)
+
+		return {'FINISHED'}
+ 
+	def draw(self, context):
+		pass
+
 class SWGMaterialsMenu(bpy.types.Menu):
 	bl_label = "Materials"
 	bl_idname = "VIEW3D_MT_SWG_materials_menu"
@@ -1684,6 +1732,7 @@ class SWGPobMenu(bpy.types.Menu):
 		layout.operator(SWG_Create_POB_Room.bl_idname, text=SWG_Create_POB_Room.bl_label)
 		layout.operator(SWG_Portals_Passable.bl_idname, text=SWG_Portals_Passable.bl_label)
 		layout.operator(SWG_Portals_Unpassable.bl_idname, text=SWG_Portals_Unpassable.bl_label)
+		layout.operator(SWG_Create_POB_Light.bl_idname, text=SWG_Create_POB_Light.bl_label)
 
 class SWGMenu(bpy.types.Menu):
 	bl_label = "SWG"
@@ -1746,6 +1795,7 @@ classes = (
 	SWG_Create_POB_Room,
 	SWG_Portals_Unpassable,
 	SWG_Portals_Passable,
+	SWG_Create_POB_Light,
 	SWGMaterialsMenu,
 	SWGMgnMenu,
 	SWGMshMenu,

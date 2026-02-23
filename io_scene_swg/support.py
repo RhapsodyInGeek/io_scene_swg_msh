@@ -724,11 +724,20 @@ def create_light(collection, swgLight):
 		blenderName='AmbientLight'
 		blenderLightType = 'AREA'
 	elif swgLight.lightType == 1:
-		blenderName="DirectionalLight"
+		blenderName="ParallelLight"
 		blenderLightType = 'SUN'
 	elif swgLight.lightType == 2:
+		blenderName='ParallelPointLight'
+		blenderLightType = 'POINT'
+	elif swgLight.lightType == 3:
 		blenderName='PointLight'
 		blenderLightType = 'POINT'
+	elif swgLight.lightType == 4:
+		blenderName='MultiCellPointLight'
+		blenderLightType = 'POINT'
+	elif swgLight.lightType == 5:
+		blenderName='SpotLight'
+		blenderLightType = 'SPOT'
 	else:
 		print(f'Warning! Unhandled SOE Light Type: {swgLight.lightType}!')
 
@@ -737,6 +746,26 @@ def create_light(collection, swgLight):
 	light_data.energy = 100
 
 	light_data.color = mathutils.Color(swgLight.diffuse_color[0:3])
+
+	# Add light properties
+	if swgLight.lightType == 2:
+		light_data['parallel'] = True
+	elif swgLight.lightType == 4:
+		light_data['multicell'] = True
+	
+	light_data['specular_color'] = swgLight.specular_color
+	light_data.id_properties_ui('specular_color').update(
+			default=(0, 0, 0), 
+			min=0.0, 
+			max=1.0, 
+			soft_min=0.0, 
+			soft_max=1.0, 
+			subtype="COLOR"
+		)
+	
+	light_data['constant_attenuation'] = swgLight.constant_att
+	light_data['linear_attenuation'] = swgLight.linear_att
+	light_data['quadratic_attenuation'] = swgLight.quad_att
 
 	# Create new object, pass the light data 
 	light_object = bpy.data.objects.new(name=blenderName, object_data=light_data)
@@ -763,14 +792,44 @@ def swg_light_from_blender(ob):
 	#print(f"Object: {ob.name} is a light and its type is {ob.data.type}")
 	# if not ob.data
 
-	diffuseColor = ob.data.color
 	lightType = 0
-	if ob.data.type == 'AREA':		
-		lightType = 0
+	if ob.data.type == 'POINT':
+		if 'parallel' in ob.data:
+			if ob.data['parallel'] == False:
+				lightType = 3 # Point
+			else:
+				lightType = 2 # ParallelPoint; supposedly obsolete? But POBs still use it?
+		else:
+			ob.data['parallel'] = True
+		if 'multicell' in ob.data:
+			if ob.data['multicell'] == True:
+				lightType = 4 # MultiCell Point
+		else:
+			ob.data['multicell'] = False
+		if lightType == 0:
+			lightType = 2 # Parallel Point is default for backwards compat
+	elif ob.data.type == 'SPOT':
+		lightType = 5 # Spot
+	elif ob.data.type == 'AREA':		
+		lightType = 0 # Ambient
 	elif ob.data.type == 'SUN':		
-		lightType = 1
-	elif ob.data.type == 'POINT':		
-		lightType = 2
+		lightType = 1 # Parallel
+	
+	diffuse_color = ob.data.color
+
+	specular_color = diffuse_color
+	if 'specular_color' in ob.data:
+		specular_color = ob.data['specular_color']
+	else:
+		ob.data['specular_color'] = specular_color
+		ob.data.id_properties_ui('specular_color').update(
+			default=(0, 0, 0), 
+			min=0.0, 
+			max=1.0, 
+			soft_min=0.0, 
+			soft_max=1.0, 
+			subtype="COLOR"
+		)
 	
 	m = ob.matrix_world
 
@@ -780,7 +839,25 @@ def swg_light_from_blender(ob):
 		m[1][0], m[1][2], m[1][1], m[1][3]
 	]
 
-	return swg_types.Light(lightType, diffuseColor, diffuseColor, transform, 1, 0, 0)
+	constant_attenuation = 1.0
+	if 'constant_attenuation' in ob.data:
+		constant_attenuation = ob.data['constant_attenuation']
+	else:
+		ob.data['constant_attenuation'] = constant_attenuation
+
+	linear_attenuation = 0.0
+	if 'linear_attenuation' in ob.data:
+		linear_attenuation = ob.data['linear_attenuation']
+	else:
+		ob.data['linear_attenuation'] = linear_attenuation
+
+	quadratic_attenuation = 0.0
+	if 'quadratic_attenuation' in ob.data:
+		quadratic_attenuation = ob.data['quadratic_attenuation']
+	else:
+		ob.data['quadratic_attenuation'] = quadratic_attenuation
+
+	return swg_types.Light(lightType, diffuse_color, specular_color, transform, constant_attenuation, linear_attenuation, quadratic_attenuation)
 
 def create_pathgraph(pgrf_collection, pgrf, parent = None, onlyCellWaypoints = False):
 	for node in pgrf.nodes:

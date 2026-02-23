@@ -465,9 +465,9 @@ class PobFile(object):
 				iff.insertFloat(light.diffuse_color.b)
 				
 				iff.insertFloat(0)
-				iff.insertFloat(light.specular_color.r)
-				iff.insertFloat(light.specular_color.g)
-				iff.insertFloat(light.specular_color.b)
+				iff.insertFloat(light.specular_color[0])
+				iff.insertFloat(light.specular_color[1])
+				iff.insertFloat(light.specular_color[2])
 
 				iff.insertFloat(light.transform[0])
 				iff.insertFloat(light.transform[1])
