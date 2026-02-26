@@ -369,8 +369,9 @@ class Cell(object):
 		self.lights = lights
 
 class Light(object):
-	def __init__(self, lightType, diffuse_color, specular_color, transform, constant_att, linear_att, quad_att):
+	def __init__(self, lightType, intensity, diffuse_color, specular_color, transform, constant_att, linear_att, quad_att):
 		self.lightType = lightType
+		self.intensity = intensity
 		self.diffuse_color = diffuse_color
 		self.specular_color = specular_color
 		self.transform = transform
@@ -409,7 +410,7 @@ class PobFile(object):
 		for cell_id, cell in enumerate(self.cells):
 			print(f"Writing out cell {cell.appearance_file}..")
 			iff.insertForm("CELL")
-			iff.insertForm("0005")
+			iff.insertForm("0006")
 			iff.insertChunk("DATA")
 			iff.insert_int32(len(cell.portals))
 			iff.insert_bool(cell.can_see_parent)
@@ -459,16 +460,15 @@ class PobFile(object):
 			iff.insert_int32(len(cell.lights))
 			for light in cell.lights:
 				iff.insert_int8(light.lightType)
-				iff.insertFloat(0)
-				iff.insertFloat(light.diffuse_color.r)
-				iff.insertFloat(light.diffuse_color.g)
-				iff.insertFloat(light.diffuse_color.b)
+				iff.insertFloat(light.intensity)
+				iff.insertFloat(light.diffuse_color.r * light.intensity)
+				iff.insertFloat(light.diffuse_color.g * light.intensity)
+				iff.insertFloat(light.diffuse_color.b * light.intensity)
 				
-				iff.insertFloat(0)
-				iff.insertFloat(light.specular_color[0])
-				iff.insertFloat(light.specular_color[1])
-				iff.insertFloat(light.specular_color[2])
-
+				iff.insertFloat(light.intensity)
+				iff.insertFloat(light.specular_color.r * light.intensity)
+				iff.insertFloat(light.specular_color.g * light.intensity)
+				iff.insertFloat(light.specular_color.b * light.intensity)
 				iff.insertFloat(light.transform[0])
 				iff.insertFloat(light.transform[1])
 				iff.insertFloat(light.transform[2])
@@ -488,7 +488,7 @@ class PobFile(object):
 
 			iff.exitChunk("LGHT")
 
-			iff.exitForm("0005")
+			iff.exitForm("0006")
 			iff.exitForm("CELL")
 		iff.exitForm("CELS")
 
@@ -619,7 +619,7 @@ class PobFile(object):
 					linear_att = iff.read_float()
 					quad_att = iff.read_float()
 
-					lights.append(Light(lightType, [dr,dg,db,da], [sr,sg,sb,sa], transform, const_att, linear_att, quad_att))
+					lights.append(Light(lightType, da, [dr,dg,db], [sr,sg,sb], transform, const_att, linear_att, quad_att))
 
 				iff.exitChunk("LGHT")
 				iff.exitForm("0005")

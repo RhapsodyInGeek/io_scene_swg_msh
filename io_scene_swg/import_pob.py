@@ -167,10 +167,10 @@ def load_new(context,
 def create_portal_number(pob, p_ind, collection):
 	portal = pob.portals[p_ind]
 	mesh = bpy.data.meshes.new(name=f'p{p_ind}-mesh')
-	obj = bpy.data.objects.new(f'p{p_ind}', mesh) 
+	obj = bpy.data.objects.new(f'p{p_ind}', mesh)
 	verts = []
 	edges = []
-	tris = []	
+	tris = []
 
 	for ind, vert in enumerate(portal.verts):
 		verts.append(Vector(support.convert_vector3([vert.x, vert.y, vert.z])))

@@ -104,22 +104,58 @@ def configure_material_from_swg_shader(material, shader, root_dir, tex_to_png):
 		elif shader.effect.startswith("effect\h_"):
 			shader_effects += SWG_EFT_HUEFULL
 	
+	x_ofs = 0
+	attribute_multiply_node = None
+	if "Color0" in material:
+		if material["Color0"] == True:
+			x_ofs = -300
+			attribute_node = nodes.new('ShaderNodeAttribute')
+			attribute_node.label = "Vertex Color"
+			if (shader_effects & SWG_EFT_HUEMAP):
+				attribute_node.location = (-500, 500)
+			else:
+				attribute_node.location = (-500, 300)
+			attribute_node.attribute_type = 'GEOMETRY'
+			attribute_node.attribute_name = "color0"
+
+			attribute_multiply_node = nodes.new('ShaderNodeMix')
+			attribute_multiply_node.label = "Vector Color Multiply"
+			if (shader_effects & SWG_EFT_HUEMAP):
+				attribute_node.location = (-250, 500)
+			else:
+				attribute_multiply_node.location = (-250, 300)
+			attribute_multiply_node.data_type = 'RGBA'
+			attribute_multiply_node.blend_type = 'MULTIPLY'
+			# Factor is always 1
+			attribute_multiply_node.inputs[0].default_value = 1
+
+			# Connect Vector Color to Vector Multiply Multiply Color 1
+			node_tree.links.new(attribute_multiply_node.inputs[6], attribute_node.outputs[0])
+			# Connect MAIN texture Color to Vector Color Multiply Color 2
+			#node_tree.links.new(attribute_multiply_node.inputs[7], main_node.outputs[0])
+			# Connect Vector Color Multiply to BSDF Base Color
+			node_tree.links.new(bsdf.inputs[0], attribute_multiply_node.outputs[2])
+
 	main_node = None
 	if shader.main:
 		main_image = load_shared_image(shader.main, root_dir, tex_to_png)
 		if main_image:
 			main_node = nodes.new('ShaderNodeTexImage')
 			main_node.label = "MAIN"
-			main_node.location = (-300, 0)
+			main_node.location = (-300 + x_ofs, 0)
 			main_node.image = main_image
 			main_node.image.colorspace_settings.name = 'sRGB'
 			main_node.image.alpha_mode = 'CHANNEL_PACKED'
-			# Connect MAIN texture Color to BSDF Base Color
-			node_tree.links.new(bsdf.inputs[0], main_node.outputs[0])
+			if attribute_multiply_node == None:
+				# Connect MAIN texture Color to BSDF Base Color
+				node_tree.links.new(bsdf.inputs[0], main_node.outputs[0])
+			else:
+				# Connect MAIN texture Color to Vector Color Multiply Color 2
+				node_tree.links.new(attribute_multiply_node.inputs[7], main_node.outputs[0])
 
 			# Hue Mapping
 			if (shader_effects & SWG_EFT_HUEMAP) and (shader.hueb or not (shader_effects & SWG_EFT_ALPHA)):
-				main_node.location = (-800, 0)
+				main_node.location = (-800 + x_ofs, 0)
 
 				hueb_node = None
 				if shader.hueb:
@@ -127,13 +163,13 @@ def configure_material_from_swg_shader(material, shader, root_dir, tex_to_png):
 					if hueb_image:
 						hueb_node = nodes.new('ShaderNodeTexImage')
 						hueb_node.label = "HUEB"
-						hueb_node.location = (-800, 300)
+						hueb_node.location = (-800 + x_ofs, 300)
 						hueb_node.image = hueb_image
 						hueb_node.image.alpha_mode = 'CHANNEL_PACKED'
 				
 				hue_mix_node = nodes.new('ShaderNodeMix')
 				hue_mix_node.label = "MAIN Hue Mix"
-				hue_mix_node.location = (-525, 0)
+				hue_mix_node.location = (-525 + x_ofs, 0)
 				hue_mix_node.data_type = 'RGBA'
 				hue_mix_node.inputs[6].default_value = (1, 1, 1, 1)
 				if "MAIN" in shader.palette_colors:
@@ -144,7 +180,7 @@ def configure_material_from_swg_shader(material, shader, root_dir, tex_to_png):
 
 				hue_multiply_node = nodes.new('ShaderNodeMix')
 				hue_multiply_node.label = "MAIN Hue Multiply"
-				hue_multiply_node.location = (-350, 0)
+				hue_multiply_node.location = (-350 + x_ofs, 0)
 				hue_multiply_node.data_type = 'RGBA'
 				hue_multiply_node.blend_type = 'MULTIPLY'
 				# Factor is always 1
@@ -162,7 +198,7 @@ def configure_material_from_swg_shader(material, shader, root_dir, tex_to_png):
 					if hueb_node:
 						hueb_mix_node = nodes.new('ShaderNodeMix')
 						hueb_mix_node.label = "HUEB Mix"
-						hueb_mix_node.location = (-525, 300)
+						hueb_mix_node.location = (-525 + x_ofs, 300)
 						hueb_mix_node.data_type = 'RGBA'
 						hueb_mix_node.inputs[6].default_value = (1, 1, 1, 1)
 						if "HUEB" in shader.palette_colors:
@@ -175,7 +211,7 @@ def configure_material_from_swg_shader(material, shader, root_dir, tex_to_png):
 
 						hueb_multiply_node = nodes.new('ShaderNodeMix')
 						hueb_multiply_node.label = "HUEB Multiply"
-						hueb_multiply_node.location = (-175, 0)
+						hueb_multiply_node.location = (-175 + x_ofs, 0)
 						hueb_multiply_node.data_type = 'RGBA'
 						hueb_multiply_node.blend_type = 'MULTIPLY'
 						# Factor is always 1
@@ -184,8 +220,12 @@ def configure_material_from_swg_shader(material, shader, root_dir, tex_to_png):
 						node_tree.links.new(hueb_multiply_node.inputs[6], hue_multiply_node.outputs[2])
 						# Connect Hue B Mix Color to Hue B Multiply Color 2
 						node_tree.links.new(hueb_multiply_node.inputs[7], hueb_mix_node.outputs[2])
-						# Connect Hue B Multiply Color to BSDF Base Color
-						node_tree.links.new(bsdf.inputs[0], hueb_multiply_node.outputs[2])
+						if attribute_multiply_node == None:
+							# Connect Hue B Multiply Color to BSDF Base Color
+							node_tree.links.new(bsdf.inputs[0], hueb_multiply_node.outputs[2])
+						else:
+							# Connect Hue B Multiply Color to Vector Color Multiply Color 2
+							node_tree.links.new(attribute_multiply_node.inputs[7], hueb_multiply_node.outputs[2])
 					
 					# No Hue B texture
 					else:
@@ -204,13 +244,18 @@ def configure_material_from_swg_shader(material, shader, root_dir, tex_to_png):
 							c = [1, 1, 1]
 						hue_mix_node.inputs[7].default_value = (c[0], c[1], c[2], 1)
 						# Connect MAIN Hue Multiply Color to BSDF Base Color
-						node_tree.links.new(bsdf.inputs[0], hue_multiply_node.outputs[2])
+						if attribute_multiply_node == None:
+							# Connect Hue Multiply Color to BSDF Base Color
+							node_tree.links.new(bsdf.inputs[0], hue_multiply_node.outputs[2])
+						else:
+							# Connect Hue Multiply Color to Vector Color Multiply Color 2
+							node_tree.links.new(attribute_multiply_node.inputs[7], hue_multiply_node.outputs[2])
 				
 				# Transparency shader; use Hue B for hue mapping
 				elif hueb_node:
 					hueb_mix_node = nodes.new('ShaderNodeMix')
 					hueb_mix_node.label = "HUEB Mix"
-					hueb_mix_node.location = (-525, 300)
+					hueb_mix_node.location = (-525 + x_ofs, 300)
 					hueb_mix_node.data_type = 'RGBA'
 					hueb_mix_node.inputs[6].default_value = (1, 0.1, 0.1, 1)
 					if "HUEB" in shader.palette_colors:
@@ -223,7 +268,7 @@ def configure_material_from_swg_shader(material, shader, root_dir, tex_to_png):
 
 					hueb_multiply_node = nodes.new('ShaderNodeMix')
 					hueb_multiply_node.label = "HUEB Multiply"
-					hueb_multiply_node.location = (-150, 0)
+					hueb_multiply_node.location = (-150 + x_ofs, 0)
 					hueb_multiply_node.data_type = 'RGBA'
 					hueb_multiply_node.blend_type = 'MULTIPLY'
 					# Factor is always 1
@@ -234,13 +279,19 @@ def configure_material_from_swg_shader(material, shader, root_dir, tex_to_png):
 					node_tree.links.new(hueb_multiply_node.inputs[7], hue_multiply_node.outputs[0])
 					# Connect Hue B Multiply Color to BSDF Base Color
 					node_tree.links.new(bsdf.inputs[0], hueb_multiply_node.outputs[0])
+					if attribute_multiply_node == None:
+						# Connect Hue B Multiply Color to BSDF Base Color
+						node_tree.links.new(bsdf.inputs[0], hueb_multiply_node.outputs[2])
+					else:
+						# Connect Hue B Multiply Color to Vector Color Multiply Color 2
+						node_tree.links.new(attribute_multiply_node.inputs[7], hueb_multiply_node.outputs[2])
 			
 			# Hue Shading
 			elif (shader_effects & SWG_EFT_HUEFULL):
-				main_node.location = (-450, 0)
+				main_node.location = (-450, x_ofs)
 				hue_multiply_node = nodes.new('ShaderNodeMix')
 				hue_multiply_node.label = "Hue Multiply"
-				hue_multiply_node.location = (-175, 0)
+				hue_multiply_node.location = (-175 + x_ofs, 0)
 				hue_multiply_node.data_type = 'RGBA'
 				hue_multiply_node.blend_type = 'MULTIPLY'
 				hue_multiply_node.inputs[0].default_value = 1 # Factor is always 1
@@ -257,11 +308,11 @@ def configure_material_from_swg_shader(material, shader, root_dir, tex_to_png):
 			elif (shader_effects & SWG_EFT_HUEMAP_RB) and (shader.hueb):
 				hueb_image = load_shared_image(shader.hueb, root_dir, tex_to_png)
 				if hueb_image:
-					main_node.location = (-525, 0)
+					main_node.location = (-525 + x_ofs, 0)
 
 					hueb_node = nodes.new('ShaderNodeTexImage')
 					hueb_node.label = "HUEB"
-					hueb_node.location = (-1100, 300)
+					hueb_node.location = (-1100 + x_ofs, 300)
 					hueb_node.image = hueb_image
 					hueb_node.image.colorspace_settings.name = 'Raw'
 					#hueb_node.image.alpha_mode = 'CHANNEL_PACKED'
@@ -269,14 +320,14 @@ def configure_material_from_swg_shader(material, shader, root_dir, tex_to_png):
 					# Separate the hue map's color channels
 					split_color_node = nodes.new('ShaderNodeSeparateColor')
 					split_color_node.label = "HUEB Split Color"
-					split_color_node.location = (-800, 300)
+					split_color_node.location = (-800 + x_ofs, 300)
 					# Connect HUEB texture Color to Split Color Color
 					node_tree.links.new(split_color_node.inputs[0], hueb_node.outputs[0])
 
 					# Palette Colors
 					hue_palette_node = nodes.new('ShaderNodeMix')
 					hue_palette_node.label = "Hue Palette Mix"
-					hue_palette_node.location = (-600, 300)
+					hue_palette_node.location = (-600 + x_ofs, 300)
 					hue_palette_node.data_type = 'RGBA'
 					
 					if "HUEB" in shader.palette_colors:
@@ -295,7 +346,7 @@ def configure_material_from_swg_shader(material, shader, root_dir, tex_to_png):
 					# Influence
 					hue_influence_node = nodes.new('ShaderNodeMix')
 					hue_influence_node.label = "Hue Influence Mix"
-					hue_influence_node.location = (-400, 300)
+					hue_influence_node.location = (-400 + x_ofs, 300)
 					hue_influence_node.data_type = 'RGBA'
 					hue_influence_node.inputs[7].default_value = (1, 1, 1, 1)
 					# Connect Split Color Blue Channel to Hue Influence Factor
@@ -305,7 +356,7 @@ def configure_material_from_swg_shader(material, shader, root_dir, tex_to_png):
 
 					hue_multiply_node = nodes.new('ShaderNodeMix')
 					hue_multiply_node.label = "Hue Multiply"
-					hue_multiply_node.location = (-200, 150)
+					hue_multiply_node.location = (-200 + x_ofs, 150)
 					hue_multiply_node.data_type = 'RGBA'
 					hue_multiply_node.blend_type = 'MULTIPLY'
 					# Factor is always 1
@@ -335,7 +386,7 @@ def configure_material_from_swg_shader(material, shader, root_dir, tex_to_png):
 						emis_node = nodes.new('ShaderNodeVectorMath')
 						emis_node.label = "Emission Factor"
 						emis_node.operation = 'MULTIPLY'
-						emis_node.location = (-175, -380)
+						emis_node.location = (-175 + x_ofs, -380)
 						# Connect MAIN texture to Vector Multiply Node
 						node_tree.links.new(emis_node.inputs[0], main_node.outputs[0])
 						node_tree.links.new(emis_node.inputs[1], main_node.outputs[1])
@@ -356,6 +407,7 @@ def configure_material_from_swg_shader(material, shader, root_dir, tex_to_png):
 		bsdf.inputs[21].default_value = 0.1
 	
 	bsdf.inputs[7].default_value = 0.0
+
 	if shader.specular:
 		if shader.specular != shader.main and shader.specular != shader.normal:
 			spec_image = load_shared_image(shader.specular, root_dir, tex_to_png)
@@ -510,6 +562,7 @@ def configure_material_from_swg_shader(material, shader, root_dir, tex_to_png):
 		emis_image = load_shared_image(shader.emission, root_dir, tex_to_png)
 		if emis_image:
 			emismap_node = nodes.new('ShaderNodeTexImage')
+			emismap_node.label = "EMIS"
 			emismap_node.location = (-225, 260)
 			emismap_node.image = emis_image
 			if emis_image != main_image:
@@ -725,7 +778,7 @@ def create_light(collection, swgLight):
 		blenderLightType = 'AREA'
 	elif swgLight.lightType == 1:
 		blenderName="ParallelLight"
-		blenderLightType = 'SUN'
+		blenderLightType = 'POINT'
 	elif swgLight.lightType == 2:
 		blenderName='ParallelPointLight'
 		blenderLightType = 'POINT'
@@ -743,7 +796,13 @@ def create_light(collection, swgLight):
 
 	# Create light datablock
 	light_data = bpy.data.lights.new(name="light-data", type=blenderLightType)
-	light_data.energy = 100
+	light_data.energy = swgLight.intensity
+	if light_data.energy == 0:
+		light_data.energy = 0.0001
+
+	for c in range(3):
+		swgLight.diffuse_color[c] /= light_data.energy
+		swgLight.specular_color[c] /= light_data.energy
 
 	light_data.color = mathutils.Color(swgLight.diffuse_color[0:3])
 
@@ -753,7 +812,7 @@ def create_light(collection, swgLight):
 	elif swgLight.lightType == 4:
 		light_data['multicell'] = True
 	
-	light_data['specular_color'] = swgLight.specular_color
+	light_data['specular_color'] = mathutils.Color(swgLight.specular_color[0:3])
 	light_data.id_properties_ui('specular_color').update(
 			default=(0, 0, 0), 
 			min=0.0, 
@@ -815,6 +874,8 @@ def swg_light_from_blender(ob):
 	elif ob.data.type == 'SUN':		
 		lightType = 1 # Parallel
 	
+	intensity = ob.data.energy
+	
 	diffuse_color = ob.data.color
 
 	specular_color = diffuse_color
@@ -857,7 +918,7 @@ def swg_light_from_blender(ob):
 	else:
 		ob.data['quadratic_attenuation'] = quadratic_attenuation
 
-	return swg_types.Light(lightType, diffuse_color, specular_color, transform, constant_attenuation, linear_attenuation, quadratic_attenuation)
+	return swg_types.Light(lightType, intensity, diffuse_color, specular_color, transform, constant_attenuation, linear_attenuation, quadratic_attenuation)
 
 def create_pathgraph(pgrf_collection, pgrf, parent = None, onlyCellWaypoints = False):
 	for node in pgrf.nodes:
