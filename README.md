@@ -13,7 +13,7 @@ Should work with Blender 2.9+ and 3+
   - skt (Skeleton)
 - Generate .apt, .sat and .lmg files
 - Generate materials from .sht (shader) files
-- Generate .pob hierarchies
+- Generate .pob hierarchies and interior buildouts
 
 ### Recommended External Tools
 - [Sytner's Iff Editor (SIE)](https://modthegalaxy.com/index.php?resources/sie.1/)
