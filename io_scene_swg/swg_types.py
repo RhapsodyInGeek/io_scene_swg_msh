@@ -410,7 +410,7 @@ class PobFile(object):
 		for cell_id, cell in enumerate(self.cells):
 			print(f"Writing out cell {cell.appearance_file}..")
 			iff.insertForm("CELL")
-			iff.insertForm("0006")
+			iff.insertForm("0005")
 			iff.insertChunk("DATA")
 			iff.insert_int32(len(cell.portals))
 			iff.insert_bool(cell.can_see_parent)
@@ -684,7 +684,6 @@ class PobFile(object):
 			self.portals.append(Portal(verts,tris))
 		print(f"Found Portals: {len(self.portals)}")
 		iff.exitForm("PRTS")
-
 
 class LodFile(object):
 
@@ -2791,4 +2790,3 @@ class SWGMgn(object):
 		if self.occlusion_zones and len(tris_with_no_facemap) > 0:
 			print(f"WARNING: Tris without assigned occlusion zone: {str(len(tris_with_no_facemap))}")
 		iff.write(self.filename)
-

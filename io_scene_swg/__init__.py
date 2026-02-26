@@ -103,6 +103,7 @@ from bpy.types import (
 	Gizmo,
 	GizmoGroup,
 )
+
 def import_swg_file(context, file):
 	obj=None
 	SWG_ROOT=context.preferences.addons[__package__].preferences.swg_root
@@ -1010,7 +1011,6 @@ class SWG_Add_Material_Operator(bpy.types.Operator):
 	def draw(self, context):
 		pass
 
-
 class SWG_Create_Apt_For_Msh(bpy.types.Operator):
 	bl_idname = "object.swg_create_apt_msh"
 	bl_label = "Create a SWG .apt for this .msh"
@@ -1591,6 +1591,8 @@ class SWG_Create_POB_Room(bpy.types.Operator):
 		r1.children.link(child)
 		child = bpy.data.collections.new(f"Portals_{name}")
 		r1.children.link(child)
+		child = bpy.data.collections.new(f"Objects_{name}")
+		r1.children.link(child)
 		return {'FINISHED'}
  
 	def draw(self, context):
@@ -1629,7 +1631,7 @@ class SWG_Portals_Unpassable(bpy.types.Operator):
 class SWG_Create_POB_Light(bpy.types.Operator):
 	bl_idname = "object.swg_create_pob_light"
 	bl_label = "Add a POB Light to the active collection"
-	bl_description = "Add a light with attenuation, specular, and type flag custom properties to the current collection"
+	bl_description = "Add a light with attenuation, specular, and type flag custom properties to the active collection"
  
 	@classmethod
 	def poll(self, context):
@@ -1638,6 +1640,10 @@ class SWG_Create_POB_Light(bpy.types.Operator):
 
 	def execute(self, context):		
 		collection = bpy.context.view_layer.active_layer_collection.collection
+
+		if collection.name.startswith("Lights_") == False:
+			print(f"ERROR! Invalid collection! Collection should be a POB \"Lights\" collection!")
+			return
 
 		# Create light datablock
 		light_data = bpy.data.lights.new(name="light-data", type='POINT')
@@ -1673,6 +1679,40 @@ class SWG_Create_POB_Light(bpy.types.Operator):
  
 	def draw(self, context):
 		pass
+
+class SWG_Initialize_POB_Interior_Object_Properties(bpy.types.Operator):
+	bl_idname = "object.swg_init_pob_obj_props"
+	bl_label = "Initialize POB object properties"
+	bl_description = "Adds the 'template', 'objvars', 'scripts', 'no_create', and 'location_list' properties to all selected objects"
+
+	def execute(self, context):
+		for obj in context.selected_objects:
+			obj['template'] = ""
+			obj['objvars'] = "$|"
+			obj['scripts'] = ""
+			obj['no_create'] = 0
+			obj['location_list'] = ""
+		
+		return {'FINISHED'}
+
+	def draw(self, context):
+		pass
+
+class SWG_Write_POB_Interior_Buildout(bpy.types.Operator):
+	bl_idname = "object.swg_write_pob_interior_buildout"
+	bl_label = "Copy active POB Interior buildout to clipboard"
+	bl_description = "Write the interior buildout text for the active selected POB collection and copy it to the clipboard"
+
+	@classmethod
+	def poll(self, context):
+		collection = bpy.context.view_layer.active_layer_collection.collection
+		return collection != None
+	
+	def execute(self, context):		
+		collection = bpy.context.view_layer.active_layer_collection.collection
+		context.window_manager.clipboard = support.create_interior_buildout(collection)
+		return {'FINISHED'}
+
 
 class SWGMaterialsMenu(bpy.types.Menu):
 	bl_label = "Materials"
@@ -1733,6 +1773,8 @@ class SWGPobMenu(bpy.types.Menu):
 		layout.operator(SWG_Portals_Passable.bl_idname, text=SWG_Portals_Passable.bl_label)
 		layout.operator(SWG_Portals_Unpassable.bl_idname, text=SWG_Portals_Unpassable.bl_label)
 		layout.operator(SWG_Create_POB_Light.bl_idname, text=SWG_Create_POB_Light.bl_label)
+		layout.operator(SWG_Initialize_POB_Interior_Object_Properties.bl_idname, text=SWG_Initialize_POB_Interior_Object_Properties.bl_label)
+		layout.operator(SWG_Write_POB_Interior_Buildout.bl_idname, text=SWG_Write_POB_Interior_Buildout.bl_label)
 
 class SWGMenu(bpy.types.Menu):
 	bl_label = "SWG"
@@ -1796,6 +1838,8 @@ classes = (
 	SWG_Portals_Unpassable,
 	SWG_Portals_Passable,
 	SWG_Create_POB_Light,
+	SWG_Initialize_POB_Interior_Object_Properties,
+	SWG_Write_POB_Interior_Buildout,
 	SWGMaterialsMenu,
 	SWGMgnMenu,
 	SWGMshMenu,
@@ -1805,7 +1849,6 @@ classes = (
 	SWGMenu
 )
 
-
 def register():
 	for cls in classes:
 		bpy.utils.register_class(cls)
@@ -1813,7 +1856,6 @@ def register():
 	bpy.types.TOPBAR_MT_file_import.append(import_operators)
 	bpy.types.TOPBAR_MT_file_export.append(export_operators)
 	bpy.types.VIEW3D_HT_header.append(draw_item)
-
 
 def unregister():
 	bpy.types.TOPBAR_MT_file_import.remove(import_operators)

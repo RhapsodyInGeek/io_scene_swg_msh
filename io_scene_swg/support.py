@@ -660,11 +660,9 @@ def obj_to_idtl(obj):
 def add_component(collection, collision, broadphase):
 	return add_collision_to_collection(collection, collision.extent, broadphase)
 
-
 def add_composite(collection, collision, broadphase):
 	for e in collision.extents:
 		add_collision_to_collection(collection, e, broadphase)
-
 
 def add_detail(collection, collision, broadphase):
 	add_collision_to_collection(collection, collision.broad_extent, True)
@@ -737,7 +735,6 @@ def create_detail_extents(broadPhaseObjs, otherObjs):
 
 	return dtal
 
-
 def create_component_extents(objs):
 	cmpt = extents.ComponentExtent()
 	cpst = extents.CompositeExtent()
@@ -778,7 +775,7 @@ def create_light(collection, swgLight):
 		blenderLightType = 'AREA'
 	elif swgLight.lightType == 1:
 		blenderName="ParallelLight"
-		blenderLightType = 'POINT'
+		blenderLightType = 'SUN'
 	elif swgLight.lightType == 2:
 		blenderName='ParallelPointLight'
 		blenderLightType = 'POINT'
@@ -842,8 +839,7 @@ def create_light(collection, swgLight):
 
 	return light_object
 
-def swg_light_from_blender(ob): 
-
+def swg_light_from_blender(ob):
 	if not ob.type == 'LIGHT':
 		print(f"Error. Tried to convert non-light object to light: {ob.name}")
 		return None
@@ -893,7 +889,6 @@ def swg_light_from_blender(ob):
 		)
 	
 	m = ob.matrix_world
-
 	transform = [
 		m[0][0], m[0][2], m[0][1], m[0][3],
 		m[2][0], m[2][2], m[2][1], m[2][3],
@@ -919,6 +914,71 @@ def swg_light_from_blender(ob):
 		ob.data['quadratic_attenuation'] = quadratic_attenuation
 
 	return swg_types.Light(lightType, intensity, diffuse_color, specular_color, transform, constant_attenuation, linear_attenuation, quadratic_attenuation)
+
+def create_interior_buildout(collection):
+	buildout_text = "strTemplate\tfltJX\tfltJY\tfltJZ\tfltKX\tfltKY\tfltKZ\tfltPX\tfltPY\tfltPZ\tstrObjVars\tstrScripts\tstrCellName\tintNoCreate\tstrLocationList\ns\tf\tf\tf\tf\tf\tf\tf\tf\tf\tp\ts\ts\ti\ts\n"
+
+	print(f"Generating interior buildout for {collection.name}...")
+	for cell in collection.children:
+		print(f"\t{cell.name} Objects:")
+		for cell_col in cell.children:
+			if cell_col.name.startswith("Objects_"):
+				for obj in cell_col.objects:
+					obj_text = ""
+
+					if 'template' in obj:
+						obj_text += obj['template'] + "\t"
+					else:
+						obj['template'] = ""
+						print(f"\t\tERROR! Missing \"template\" property in {obj.name}!")
+						continue
+
+					m = obj.matrix_world
+					t = [
+						m[0][0], m[0][2], m[0][1], m[0][3],
+						m[2][0], m[2][2], m[2][1], m[2][3],
+						m[1][0], m[1][2], m[1][1], m[1][3]
+					]
+					for i in range(len(t)):
+						t[i] = round(t[i], 9)
+					
+					obj_text += f"{t[1]}\t{t[5]}\t{t[9]}\t"
+					obj_text += f"{t[2]}\t{t[6]}\t{t[10]}\t"
+					obj_text += f"{t[3]}\t{t[7]}\t{t[11]}\t"
+
+					if 'objvars' in obj:
+						if obj['objvars'].endswith("$|"):
+							obj_text += obj['objvars'] + "\t"
+						else:
+							obj_text += "$|" + obj['objvars'] + "\t"
+					else:
+						obj['objvars'] = "$|"
+						obj_text += "$|\t"
+					
+					if 'scripts' in obj:
+						obj_text += obj['scripts'] + "\t"
+					else:
+						obj['scripts'] = ""
+						obj_text += "\t"
+					
+					obj_text += cell.name + "\t"
+
+					if 'no_create' in obj:
+						obj_text += str(obj['no_create']) + "\t"
+					else:
+						obj['no_create'] = 0
+						obj_text += "0\t"
+					
+					if 'location_list' in obj:
+						obj_text += obj['location_list'] + "\n"
+					else:
+						obj['location_list'] = ""
+						obj_text += "\n"
+					
+					buildout_text += obj_text
+					print(f"\t\t{obj.name}")
+	
+	return buildout_text
 
 def create_pathgraph(pgrf_collection, pgrf, parent = None, onlyCellWaypoints = False):
 	for node in pgrf.nodes:
@@ -1056,4 +1116,3 @@ def hardpoint_from_obj(ob):
 		m[1][0], m[1][2], m[1][1], m[1][3],
 		clean_name
 	]
-
