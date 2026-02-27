@@ -149,8 +149,8 @@ def export_one(fullpath, extract_dir, obj, flip_uv_vertical):
 			thisSPS.flags = vertex_buffer_format.setNumberOfTextureCoordinateSets(thisSPS.flags, uv_dim)
 			thisSPS.flags = vertex_buffer_format.setTextureCoordinateSetDimension(thisSPS.flags, uv_dim - 1, 4)
 
-		unique_verts={}
-		last_unique_vert_index=0
+		unique_verts = {}
+		last_unique_vert_index = 0
 		for face_index, face in enumerate(face_list):
 			p1 = p2 = p3 = None
 			for uv_index, l_index in enumerate(face.loop_indices):
@@ -168,10 +168,10 @@ def export_one(fullpath, extract_dir, obj, flip_uv_vertical):
 					swg_v.normal = Vector(support.convert_vector3(normal))
 					
 					if doColor0:
-						swg_v.color0 = me.vertex_colors["color0"].data[last_unique_vert_index-1].color
+						swg_v.color0 = me.vertex_colors["color0"].data[l_index].color
 
 					if doColor1:
-						swg_v.color1 = me.vertex_colors["color1"].data[last_unique_vert_index-1].color
+						swg_v.color1 = me.vertex_colors["color1"].data[l_index].color
 
 					for i in range(0, uvSets):
 						if i >= len(me.uv_layers):
@@ -202,7 +202,7 @@ def export_one(fullpath, extract_dir, obj, flip_uv_vertical):
 					p3 = unique_verts[rounded]
 					thisSPS.tris.append(swg_types.Triangle(p3, p2, p1))
 					total_tris += 1
-					p1 = p2 = p3 = None		
+					p1 = p2 = p3 = None	
 			
 		print(f"SPS {str(thisSPS.no)}: Unique Verts: {str(len(unique_verts))} UV Channels: {str(vertex_buffer_format.getNumberOfTextureCoordinateSets(thisSPS.flags))} Has flags {str(thisSPS.flags)}") 
 		newMsh.spss.append(thisSPS)	 

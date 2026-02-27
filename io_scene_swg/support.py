@@ -777,15 +777,12 @@ def create_light(collection, swgLight):
 		blenderName="ParallelLight"
 		blenderLightType = 'SUN'
 	elif swgLight.lightType == 2:
-		blenderName='ParallelPointLight'
-		blenderLightType = 'POINT'
-	elif swgLight.lightType == 3:
 		blenderName='PointLight'
 		blenderLightType = 'POINT'
-	elif swgLight.lightType == 4:
-		blenderName='MultiCellPointLight'
+	elif swgLight.lightType == 3:
+		blenderName='AreaLight'
 		blenderLightType = 'POINT'
-	elif swgLight.lightType == 5:
+	elif swgLight.lightType == 4:
 		blenderName='SpotLight'
 		blenderLightType = 'SPOT'
 	else:
@@ -802,12 +799,6 @@ def create_light(collection, swgLight):
 		swgLight.specular_color[c] /= light_data.energy
 
 	light_data.color = mathutils.Color(swgLight.diffuse_color[0:3])
-
-	# Add light properties
-	if swgLight.lightType == 2:
-		light_data['parallel'] = True
-	elif swgLight.lightType == 4:
-		light_data['multicell'] = True
 	
 	light_data['specular_color'] = mathutils.Color(swgLight.specular_color[0:3])
 	light_data.id_properties_ui('specular_color').update(
@@ -844,36 +835,20 @@ def swg_light_from_blender(ob):
 		print(f"Error. Tried to convert non-light object to light: {ob.name}")
 		return None
 
-	#print(f"Object: {ob.name} is a light and its type is {ob.data.type}")
-	# if not ob.data
-
 	lightType = 0
 	if ob.data.type == 'POINT':
-		if 'parallel' in ob.data:
-			if ob.data['parallel'] == False:
-				lightType = 3 # Point
-			else:
-				lightType = 2 # ParallelPoint; supposedly obsolete? But POBs still use it?
-		else:
-			ob.data['parallel'] = True
-		if 'multicell' in ob.data:
-			if ob.data['multicell'] == True:
-				lightType = 4 # MultiCell Point
-		else:
-			ob.data['multicell'] = False
-		if lightType == 0:
-			lightType = 2 # Parallel Point is default for backwards compat
-	elif ob.data.type == 'SPOT':
-		lightType = 5 # Spot
-	elif ob.data.type == 'AREA':		
-		lightType = 0 # Ambient
+		lightType = 2 # Point
 	elif ob.data.type == 'SUN':		
 		lightType = 1 # Parallel
+	elif ob.data.type == 'AREA':		
+		lightType = 0 # Ambient
+	elif ob.data.type == 'SPOT':
+		lightType = 4 # Spot; discarded currently; support with CELL version 0006?
 	
 	intensity = ob.data.energy
 	
 	diffuse_color = ob.data.color
-
+	
 	specular_color = diffuse_color
 	if 'specular_color' in ob.data:
 		specular_color = ob.data['specular_color']

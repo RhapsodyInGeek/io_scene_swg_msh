@@ -488,7 +488,7 @@ class PobFile(object):
 
 			iff.exitChunk("LGHT")
 
-			iff.exitForm("0006")
+			iff.exitForm("0005")
 			iff.exitForm("CELL")
 		iff.exitForm("CELS")
 

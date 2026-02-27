@@ -1651,9 +1651,6 @@ class SWG_Create_POB_Light(bpy.types.Operator):
 		light_data.color = [0.5,0.5,0.5]
 
 		# Add light properties
-		light_data['parallel'] = False
-		light_data['multicell'] = False
-		
 		light_data['specular_color'] = [0.0,0.0,0.0]
 		light_data.id_properties_ui('specular_color').update(
 				default=(0, 0, 0), 
@@ -1712,7 +1709,6 @@ class SWG_Write_POB_Interior_Buildout(bpy.types.Operator):
 		collection = bpy.context.view_layer.active_layer_collection.collection
 		context.window_manager.clipboard = support.create_interior_buildout(collection)
 		return {'FINISHED'}
-
 
 class SWGMaterialsMenu(bpy.types.Menu):
 	bl_label = "Materials"
