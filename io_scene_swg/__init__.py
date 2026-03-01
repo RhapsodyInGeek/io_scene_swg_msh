@@ -1564,6 +1564,9 @@ class SWG_Create_POB(bpy.types.Operator):
 		child = bpy.data.collections.new("Portals_room1")
 		r1.children.link(child)
 
+		child = bpy.data.collections.new("Objects_room1")
+		r1.children.link(child)
+
 		return {'FINISHED'}
  
 	def draw(self, context):
